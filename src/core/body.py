@@ -170,8 +170,6 @@ class Body:
         if not self.is_static:
             self.velocity += self.force * self.inverse_mass * time_step
             self.angular_velocity += self.torque * self.inverse_inertia * time_step
-            self.position += self.velocity * time_step
-            self.transform.position = self.position
             self.orientation += self.angular_velocity * time_step
             self.force = Vec2.zero()
             self.torque = 0.0
@@ -185,8 +183,6 @@ class Body:
         """
         if not self.is_static:
             self.position += self.velocity * time_step
-            self.transform.position = self.position
-            self.transform.position = self.position
             self.transform.position = self.position
 
     def translate(self, translation: Vec2) -> None:

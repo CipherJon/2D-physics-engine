@@ -69,6 +69,44 @@ for _ in range(100):
 - `examples/`: Example simulations.
 - `tests/`: Unit tests.
 - `docs/`: Documentation.
+- `tools/`: Utility tools for benchmarking, visualization, and scene editing.
+  - `benchmark.py`: Measure the performance of the physics engine.
+  - `export_svg.py`: Export simulation scenes as SVG files.
+  - `scene_editor.py`: Create or edit simulation scenes interactively.
+
+## Tools
+
+The `tools/` directory contains utility scripts to assist with development, debugging, and visualization:
+
+### Benchmarking
+
+To measure the performance of the physics engine, run:
+
+```bash
+python tools/benchmark.py
+```
+
+This script simulates varying numbers of bodies and constraints and reports the average time per step.
+
+### Exporting to SVG
+
+To export a simulation scene as an SVG file, run:
+
+```bash
+python tools/export_svg.py
+```
+
+This script creates a visual representation of the current state of the simulation, which can be useful for documentation or debugging.
+
+### Scene Editor
+
+To interactively create or edit a simulation scene, run:
+
+```bash
+python tools/scene_editor.py
+```
+
+This script provides a simple interface for adding or removing bodies and joints, making it easier to set up complex simulations.
 
 ## Contributing
 
