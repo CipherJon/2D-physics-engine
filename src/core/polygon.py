@@ -1,11 +1,12 @@
 import math
 
+from ..core.shape import Shape
 from ..math.mat22 import Mat22
 from ..math.transform import Transform
 from ..math.vec2 import Vec2
 
 
-class Polygon:
+class Polygon(Shape):
     """
     A class to represent a polygonal shape in a physics engine.
     """

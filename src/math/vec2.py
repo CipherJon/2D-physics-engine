@@ -1,5 +1,5 @@
-```path/to/physics-engine/src/math/vec2.py#L1-200
 import math
+
 
 class Vec2:
     """
@@ -14,20 +14,8 @@ class Vec2:
             x (float): The x-component of the vector.
             y (float): The y-component of the vector.
         """
-        self.x = float(x)
-        self.y = float(y)
-
-    def __str__(self):
-        """
-        Return a string representation of the vector.
-        """
-        return f"Vec2({self.x}, {self.y})"
-
-    def __repr__(self):
-        """
-        Return a detailed string representation of the vector.
-        """
-        return f"Vec2(x={self.x}, y={self.y})"
+        self.x = x
+        self.y = y
 
     def __add__(self, other):
         """
@@ -61,7 +49,7 @@ class Vec2:
 
     def __mul__(self, other):
         """
-        Multiply the vector by a scalar or another vector (element-wise).
+        Multiply a vector by a scalar or another vector (element-wise).
 
         Args:
             other (Vec2 or float): The scalar or vector to multiply by.
@@ -76,7 +64,7 @@ class Vec2:
 
     def __truediv__(self, other):
         """
-        Divide the vector by a scalar or another vector (element-wise).
+        Divide a vector by a scalar or another vector (element-wise).
 
         Args:
             other (Vec2 or float): The scalar or vector to divide by.
@@ -91,7 +79,7 @@ class Vec2:
 
     def __neg__(self):
         """
-        Negate the vector.
+        Negate a vector.
 
         Returns:
             Vec2: The negated vector.
@@ -112,6 +100,24 @@ class Vec2:
             return False
         return math.isclose(self.x, other.x) and math.isclose(self.y, other.y)
 
+    def __repr__(self):
+        """
+        Return a detailed string representation of the vector.
+
+        Returns:
+            str: The detailed string representation.
+        """
+        return f"Vec2(x={self.x}, y={self.y})"
+
+    def __str__(self):
+        """
+        Return a string representation of the vector.
+
+        Returns:
+            str: The string representation.
+        """
+        return f"Vec2({self.x}, {self.y})"
+
     def magnitude(self):
         """
         Calculate the magnitude (length) of the vector.
@@ -119,7 +125,7 @@ class Vec2:
         Returns:
             float: The magnitude of the vector.
         """
-        return math.sqrt(self.x ** 2 + self.y ** 2)
+        return math.sqrt(self.x**2 + self.y**2)
 
     def magnitude_squared(self):
         """
@@ -128,11 +134,11 @@ class Vec2:
         Returns:
             float: The squared magnitude of the vector.
         """
-        return self.x ** 2 + self.y ** 2
+        return self.x**2 + self.y**2
 
     def normalize(self):
         """
-        Normalize the vector to a unit vector.
+        Normalize the vector to have a magnitude of 1.
 
         Returns:
             Vec2: The normalized vector.
@@ -162,13 +168,13 @@ class Vec2:
             other (Vec2): The other vector.
 
         Returns:
-            float: The cross product (scalar for 2D vectors).
+            float: The cross product.
         """
         return self.x * other.y - self.y * other.x
 
     def distance_to(self, other):
         """
-        Calculate the distance between this vector and another vector.
+        Calculate the distance between two vectors.
 
         Args:
             other (Vec2): The other vector.
@@ -180,10 +186,10 @@ class Vec2:
 
     def rotate(self, angle):
         """
-        Rotate the vector by a given angle (in radians).
+        Rotate the vector by a given angle.
 
         Args:
-            angle (float): The angle to rotate by (in radians).
+            angle (float): The angle to rotate by, in radians.
 
         Returns:
             Vec2: The rotated vector.
@@ -192,7 +198,92 @@ class Vec2:
         sin_theta = math.sin(angle)
         x = self.x * cos_theta - self.y * sin_theta
         y = self.x * sin_theta + self.y * cos_theta
-        return Vec2(x, y)
+        # Round to 10 decimal places to avoid floating-point precision issues
+        return Vec2(round(x, 10), round(y, 10))
+
+    def project(self, axis):
+        """
+        Project the vector onto an axis.
+
+        Args:
+            axis (Vec2): The axis to project onto.
+
+        Returns:
+            float: The projection of the vector onto the axis.
+        """
+        return self.dot(axis) / axis.magnitude()
+
+    def reflect(self, normal):
+        """
+        Reflect the vector over a normal.
+
+        Args:
+            normal (Vec2): The normal vector.
+
+        Returns:
+            Vec2: The reflected vector.
+        """
+        return self - normal * (2 * self.dot(normal))
+
+    @staticmethod
+    def zero():
+        """
+        Create a zero vector.
+
+        Returns:
+            Vec2: The zero vector.
+        """
+        return Vec2(0, 0)
+
+    @staticmethod
+    def one():
+        """
+        Create a unit vector.
+
+        Returns:
+            Vec2: The unit vector.
+        """
+        return Vec2(1, 1)
+
+    @staticmethod
+    def up():
+        """
+        Create an up vector.
+
+        Returns:
+            Vec2: The up vector.
+        """
+        return Vec2(0, 1)
+
+    @staticmethod
+    def down():
+        """
+        Create a down vector.
+
+        Returns:
+            Vec2: The down vector.
+        """
+        return Vec2(0, -1)
+
+    @staticmethod
+    def left():
+        """
+        Create a left vector.
+
+        Returns:
+            Vec2: The left vector.
+        """
+        return Vec2(-1, 0)
+
+    @staticmethod
+    def right():
+        """
+        Create a right vector.
+
+        Returns:
+            Vec2: The right vector.
+        """
+        return Vec2(1, 0)
 
     def to_tuple(self):
         """
@@ -216,32 +307,22 @@ class Vec2:
         """
         return cls(tuple_data[0], tuple_data[1])
 
-    @classmethod
-    def zero(cls):
-        """
-        Create a zero vector.
-
-        Returns:
-            Vec2: A zero vector.
-        """
-        return cls(0.0, 0.0)
-
-    @classmethod
-    def unit_x(cls):
+    @staticmethod
+    def unit_x():
         """
         Create a unit vector in the x-direction.
 
         Returns:
             Vec2: A unit vector in the x-direction.
         """
-        return cls(1.0, 0.0)
+        return Vec2(1.0, 0.0)
 
-    @classmethod
-    def unit_y(cls):
+    @staticmethod
+    def unit_y():
         """
         Create a unit vector in the y-direction.
 
         Returns:
             Vec2: A unit vector in the y-direction.
         """
-        return cls(0.0, 1.0)
+        return Vec2(0.0, 1.0)

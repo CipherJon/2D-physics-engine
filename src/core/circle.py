@@ -1,9 +1,10 @@
 import math
 
+from ..core.shape import Shape
 from ..math.vec2 import Vec2
 
 
-class Circle:
+class Circle(Shape):
     """
     A class to represent a circular shape in a physics engine.
     """
@@ -86,6 +87,23 @@ class Circle:
             translation (Vec2): The translation vector.
         """
         self.center += translation
+
+    def get_vertices(self):
+        """
+        Get the vertices of the circle.
+
+        Returns:
+            list of Vec2: The vertices of the circle.
+        """
+        # Approximate the circle with a polygon
+        num_vertices = 16
+        vertices = []
+        for i in range(num_vertices):
+            angle = 2 * math.pi * i / num_vertices
+            x = self.center.x + self.radius * math.cos(angle)
+            y = self.center.y + self.radius * math.sin(angle)
+            vertices.append(Vec2(x, y))
+        return vertices
 
     def rotate(self, angle, pivot=Vec2.zero()):
         """
