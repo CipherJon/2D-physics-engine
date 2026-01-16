@@ -179,6 +179,8 @@ class World:
         # Correct positions (joints)
         for _ in range(self.position_iterations):
             for joint in self.joints:
+                if hasattr(joint, "pre_solve"):
+                    joint.pre_solve(self.time_step)
                 if hasattr(joint, "solve_position_constraints"):
                     joint.solve_position_constraints()
 

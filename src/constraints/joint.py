@@ -52,3 +52,12 @@ class Joint:
         Solve the position constraints for the joint.
         """
         pass
+
+    def pre_solve(self, time_step: float):
+        """
+        Prepare the joint for solving.
+
+        Args:
+            time_step (float): The time step for the simulation.
+        """
+        pass

@@ -1,8 +1,16 @@
-import math
+import logging
 
 from ..core.body import Body
 from ..math.mat22 import Mat22
 from ..math.vec2 import Vec2
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class RevoluteJoint:
@@ -30,6 +38,7 @@ class RevoluteJoint:
         # Initialize the joint's properties
         self.bias_factor = 0.2
         self.softness = 0.0
+        self.impulse = Vec2(0.0, 0.0)
 
     def pre_solve(self, time_step: float):
         """
@@ -38,6 +47,7 @@ class RevoluteJoint:
         Args:
             time_step (float): The time step for the simulation.
         """
+        logger.info("Pre-solving RevoluteJoint between body1 and body2")
         # Calculate the world anchor points
         self.anchor1 = self.body1.transform.transform_point(self.local_anchor1)
         self.anchor2 = self.body2.transform.transform_point(self.local_anchor2)
@@ -56,6 +66,23 @@ class RevoluteJoint:
         Args:
             time_step (float): The time step for the simulation.
         """
+        logger.info("Solving velocity constraints for RevoluteJoint")
+        # Ensure mass_matrix and bias are available
+        if not hasattr(self, "mass_matrix"):
+            logger.error(
+                "mass_matrix not initialized. Call pre_solve before solve_velocity_constraints."
+            )
+            raise AttributeError(
+                "mass_matrix not initialized. Call pre_solve before solve_velocity_constraints."
+            )
+        if not hasattr(self, "bias"):
+            logger.error(
+                "bias not initialized. Call pre_solve before solve_velocity_constraints."
+            )
+            raise AttributeError(
+                "bias not initialized. Call pre_solve before solve_velocity_constraints."
+            )
+
         # Calculate the relative velocity
         velocity1 = self.body1.velocity + Vec2(
             -self.body1.angular_velocity * self.local_anchor1.y,
@@ -84,6 +111,7 @@ class RevoluteJoint:
         """
         Solve the position constraints for the joint.
         """
+        logger.info("Solving position constraints for RevoluteJoint")
         # Calculate the position error
         position_error = self.anchor2 - self.anchor1
 
