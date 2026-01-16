@@ -1,4 +1,5 @@
 import math
+from typing import List, Optional
 
 from ..core.shape import Shape
 from ..math.vec2 import Vec2
@@ -9,35 +10,41 @@ class Circle(Shape):
     A class to represent a circular shape in a physics engine.
     """
 
-    def __init__(self, center=Vec2.zero(), radius=1.0):
+    def __init__(self, center: Vec2 = Vec2.zero(), radius: float = 1.0) -> None:
         """
         Initialize a circle with a center and radius.
 
         Args:
-            center (Vec2): The center of the circle.
-            radius (float): The radius of the circle.
+            center (Vec2): The center of the circle. Defaults to Vec2.zero().
+            radius (float): The radius of the circle. Defaults to 1.0.
         """
         self.center = center
         self.radius = float(radius)
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return a string representation of the circle.
+
+        Returns:
+            str: A string representation of the circle.
         """
         return f"Circle(center={self.center}, radius={self.radius})"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Return a detailed string representation of the circle.
+
+        Returns:
+            str: A detailed string representation of the circle.
         """
         return f"Circle(center={repr(self.center)}, radius={self.radius})"
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """
         Check if two circles are equal.
 
         Args:
-            other (Circle): The circle to compare with.
+            other (object): The object to compare with.
 
         Returns:
             bool: True if the circles are equal, False otherwise.
@@ -46,7 +53,7 @@ class Circle(Shape):
             return False
         return self.center == other.center and math.isclose(self.radius, other.radius)
 
-    def area(self):
+    def area(self) -> float:
         """
         Calculate the area of the circle.
 
@@ -55,7 +62,7 @@ class Circle(Shape):
         """
         return math.pi * self.radius**2
 
-    def circumference(self):
+    def circumference(self) -> float:
         """
         Calculate the circumference of the circle.
 
@@ -64,7 +71,7 @@ class Circle(Shape):
         """
         return 2 * math.pi * self.radius
 
-    def contains_point(self, point):
+    def contains_point(self, point: Vec2) -> bool:
         """
         Check if a point is inside the circle.
 
@@ -79,7 +86,7 @@ class Circle(Shape):
         ) ** 2
         return distance_squared <= self.radius**2
 
-    def translate(self, translation):
+    def translate(self, translation: Vec2) -> None:
         """
         Translate the circle by a vector.
 
@@ -88,12 +95,12 @@ class Circle(Shape):
         """
         self.center += translation
 
-    def get_vertices(self):
+    def get_vertices(self) -> List[Vec2]:
         """
         Get the vertices of the circle.
 
         Returns:
-            list of Vec2: The vertices of the circle.
+            List[Vec2]: The vertices of the circle.
         """
         # Approximate the circle with a polygon
         num_vertices = 16
@@ -105,13 +112,13 @@ class Circle(Shape):
             vertices.append(Vec2(x, y))
         return vertices
 
-    def rotate(self, angle, pivot=Vec2.zero()):
+    def rotate(self, angle: float, pivot: Vec2 = Vec2.zero()) -> None:
         """
         Rotate the circle around a pivot point.
 
         Args:
             angle (float): The angle to rotate by (in radians).
-            pivot (Vec2): The pivot point to rotate around.
+            pivot (Vec2): The pivot point to rotate around. Defaults to Vec2.zero().
         """
         # Translate the circle so that the pivot is at the origin
         translated_center = self.center - pivot
@@ -120,12 +127,12 @@ class Circle(Shape):
         # Translate back
         self.center = rotated_center + pivot
 
-    def get_aabb(self, body=None):
+    def get_aabb(self, body: Optional["Body"] = None) -> "AABB":
         """
         Get the axis-aligned bounding box for the circle.
 
         Args:
-            body (Body, optional): The body associated with the AABB.
+            body (Optional[Body]): The body associated with the AABB. Defaults to None.
 
         Returns:
             AABB: The axis-aligned bounding box.
@@ -138,7 +145,7 @@ class Circle(Shape):
             body,
         )
 
-    def get_inertia(self, mass):
+    def get_inertia(self, mass: float) -> float:
         """
         Calculate the moment of inertia for the circle.
 

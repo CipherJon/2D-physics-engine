@@ -37,3 +37,18 @@ class Joint:
         Solve the joint constraint.
         """
         pass
+
+    def solve_velocity_constraints(self, time_step):
+        """
+        Solve the velocity constraints for the joint.
+
+        Args:
+            time_step (float): The time step for the simulation.
+        """
+        pass
+
+    def solve_position_constraints(self):
+        """
+        Solve the position constraints for the joint.
+        """
+        pass

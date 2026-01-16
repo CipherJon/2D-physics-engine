@@ -1,4 +1,5 @@
 import math
+from typing import Optional
 
 from ..core.shape import Shape
 from ..math.transform import Transform
@@ -12,14 +13,14 @@ class Body:
 
     def __init__(
         self,
-        shape,
-        mass=1.0,
-        position=Vec2.zero(),
-        velocity=Vec2.zero(),
-        angular_velocity=0.0,
-        orientation=0.0,
-        is_static=False,
-    ):
+        shape: Shape,
+        mass: float = 1.0,
+        position: Vec2 = Vec2.zero(),
+        velocity: Vec2 = Vec2.zero(),
+        angular_velocity: float = 0.0,
+        orientation: float = 0.0,
+        is_static: bool = False,
+    ) -> None:
         """
         Initialize a physics body with a shape, mass, position, velocity, and angular velocity.
 
@@ -53,13 +54,13 @@ class Body:
         # Initialize transformation
         self.transform = Transform(position, 0.0)
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return a string representation of the body.
         """
         return f"Body(shape={self.shape}, mass={self.mass}, position={self.position}, velocity={self.velocity}, angular_velocity={self.angular_velocity})"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Return a detailed string representation of the body.
         """
@@ -68,7 +69,7 @@ class Body:
             f"velocity={repr(self.velocity)}, angular_velocity={self.angular_velocity}, is_static={self.is_static})"
         )
 
-    def apply_force(self, force, point=Vec2.zero()):
+    def apply_force(self, force: Vec2, point: Vec2 = Vec2.zero()) -> None:
         """
         Apply a force to the body at a specific point.
 
@@ -79,7 +80,7 @@ class Body:
         self.force += force
         self.torque += (point - self.position).cross(force)
 
-    def apply_impulse(self, impulse, point=Vec2.zero()):
+    def apply_impulse(self, impulse: Vec2, point: Vec2 = Vec2.zero()) -> None:
         """
         Apply an impulse to the body at a specific point.
 
@@ -92,7 +93,7 @@ class Body:
             impulse
         ) * self.inverse_inertia
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         """
         Update the body's position and velocity based on the applied forces and torques.
 
@@ -115,7 +116,7 @@ class Body:
         self.force = Vec2.zero()
         self.torque = 0.0
 
-    def get_kinetic_energy(self):
+    def get_kinetic_energy(self) -> float:
         """
         Calculate the kinetic energy of the body.
 
@@ -126,7 +127,7 @@ class Body:
         rotational_energy = 0.5 * self.inertia * self.angular_velocity**2
         return linear_energy + rotational_energy
 
-    def get_potential_energy(self, gravity=Vec2(0.0, -9.81)):
+    def get_potential_energy(self, gravity: Vec2 = Vec2(0.0, -9.81)) -> float:
         """
         Calculate the potential energy of the body due to gravity.
 
@@ -138,7 +139,7 @@ class Body:
         """
         return self.mass * gravity.y * self.position.y
 
-    def get_total_energy(self, gravity=Vec2(0.0, -9.81)):
+    def get_total_energy(self, gravity: Vec2 = Vec2(0.0, -9.81)) -> float:
         """
         Calculate the total energy of the body.
 
@@ -150,7 +151,7 @@ class Body:
         """
         return self.get_kinetic_energy() + self.get_potential_energy(gravity)
 
-    def get_aabb(self):
+    def get_aabb(self) -> "AABB":
         """
         Get the axis-aligned bounding box of the body.
 
@@ -159,7 +160,7 @@ class Body:
         """
         return self.shape.get_aabb(body=self)
 
-    def integrate_velocity(self, time_step):
+    def integrate_velocity(self, time_step: float) -> None:
         """
         Integrate the velocity of the body.
 
@@ -170,7 +171,7 @@ class Body:
             self.position += self.velocity * time_step
             self.orientation += self.angular_velocity * time_step
 
-    def integrate_position(self, time_step):
+    def integrate_position(self, time_step: float) -> None:
         """
         Integrate the position of the body.
 
@@ -180,7 +181,7 @@ class Body:
         if not self.is_static:
             self.position += self.velocity * time_step
 
-    def translate(self, translation):
+    def translate(self, translation: Vec2) -> None:
         """
         Translate the body by a given vector.
 
@@ -190,7 +191,7 @@ class Body:
         self.position += translation
         self.transform.position = self.position
 
-    def rotate(self, angle):
+    def rotate(self, angle: float) -> None:
         """
         Rotate the body by a given angle.
 
@@ -199,7 +200,7 @@ class Body:
         """
         self.transform.rotation += angle
 
-    def set_transform(self, transform):
+    def set_transform(self, transform: Transform) -> None:
         """
         Set the transformation of the body.
 
