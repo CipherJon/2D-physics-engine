@@ -59,7 +59,14 @@ class Narrowphase:
                 # Calculate relative velocity
                 relative_velocity = body2.velocity - body1.velocity
                 # Calculate impulse
-                impulse = manifold.normal * manifold.depth
+                impulse = manifold.normal * (
+                    manifold.depth + relative_velocity.dot(manifold.normal)
+                )
                 # Apply impulse to the bodies
                 body1.velocity -= impulse * body1.inverse_mass
                 body2.velocity += impulse * body2.inverse_mass
+                # Update positions to resolve overlap
+                body1.position -= manifold.normal * manifold.depth * 0.5
+                body2.position += manifold.normal * manifold.depth * 0.5
+                body1.transform.position = body1.position
+                body2.transform.position = body2.position

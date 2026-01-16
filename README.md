@@ -6,7 +6,7 @@ A 2D physics engine written in Python. This project provides a framework for sim
 
 - **Rigid Body Dynamics**: Simulate the motion of rigid bodies under forces like gravity.
 - **Collision Detection**: Broad-phase and narrow-phase collision detection using AABB and SAT (Separating Axis Theorem).
-- **Constraints and Joints**: Support for distance joints, revolute joints, and more.
+- **Constraints and Joints**: Support for distance joints, revolute joints, and more. Recent improvements include better initialization and error handling for joints.
 - **Visualization**: Debugging and visualization tools using Pygame.
 
 ## Installation

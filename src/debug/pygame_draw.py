@@ -143,8 +143,10 @@ class PygameDraw:
         Args:
             world: The physics world to draw.
         """
-        for body in world.bodies:
+        self.clear()
+        for body in world.get_bodies():
             self.draw_body(body)
+        self.render()
 
     def _to_screen_coordinates(self, point: Vec2):
         """
