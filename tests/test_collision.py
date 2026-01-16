@@ -1,6 +1,8 @@
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/media/cipherjon/HDD/Repo/physics-engine/src")
+# Add the project root to the Python path
+sys.path.append(str(Path(__file__).parent.parent))
 
 from src.collision.sat import SAT
 from src.core.circle import Circle
