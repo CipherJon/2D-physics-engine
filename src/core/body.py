@@ -17,6 +17,7 @@ class Body:
         position=Vec2.zero(),
         velocity=Vec2.zero(),
         angular_velocity=0.0,
+        orientation=0.0,
         is_static=False,
     ):
         """
@@ -35,6 +36,7 @@ class Body:
         self.position = position
         self.velocity = velocity
         self.angular_velocity = float(angular_velocity)
+        self.orientation = float(orientation)
         self.is_static = bool(is_static)
 
         # Calculate derived properties
@@ -153,9 +155,30 @@ class Body:
         Get the axis-aligned bounding box of the body.
 
         Returns:
-            tuple: The minimum and maximum vertices of the AABB.
+            AABB: The axis-aligned bounding box.
         """
-        return self.shape.get_aabb()
+        return self.shape.get_aabb(body=self)
+
+    def integrate_velocity(self, time_step):
+        """
+        Integrate the velocity of the body.
+
+        Args:
+            time_step (float): The time step for integration.
+        """
+        if not self.is_static:
+            self.position += self.velocity * time_step
+            self.orientation += self.angular_velocity * time_step
+
+    def integrate_position(self, time_step):
+        """
+        Integrate the position of the body.
+
+        Args:
+            time_step (float): The time step for integration.
+        """
+        if not self.is_static:
+            self.position += self.velocity * time_step
 
     def translate(self, translation):
         """

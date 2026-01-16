@@ -119,3 +119,33 @@ class Circle(Shape):
         rotated_center = translated_center.rotate(angle)
         # Translate back
         self.center = rotated_center + pivot
+
+    def get_aabb(self, body=None):
+        """
+        Get the axis-aligned bounding box for the circle.
+
+        Args:
+            body (Body, optional): The body associated with the AABB.
+
+        Returns:
+            AABB: The axis-aligned bounding box.
+        """
+        from src.core.aabb import AABB
+
+        return AABB(
+            Vec2(self.center.x - self.radius, self.center.y - self.radius),
+            Vec2(self.center.x + self.radius, self.center.y + self.radius),
+            body,
+        )
+
+    def get_inertia(self, mass):
+        """
+        Calculate the moment of inertia for the circle.
+
+        Args:
+            mass (float): The mass of the circle.
+
+        Returns:
+            float: The moment of inertia.
+        """
+        return 0.5 * mass * self.radius**2

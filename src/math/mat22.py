@@ -1,5 +1,7 @@
 import math
 
+from src.math.vec2 import Vec2
+
 
 class Mat22:
     """
@@ -106,6 +108,12 @@ class Mat22:
                         + self.cols[1][1] * other.cols[1][1],
                     ],
                 ]
+            )
+        elif isinstance(other, Vec2):
+            # Matrix-vector multiplication
+            return Vec2(
+                self.cols[0][0] * other.x + self.cols[0][1] * other.y,
+                self.cols[1][0] * other.x + self.cols[1][1] * other.y,
             )
         else:
             # Scalar multiplication

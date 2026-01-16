@@ -2,8 +2,8 @@ import sys
 
 sys.path.append("/media/cipherjon/HDD/Repo/physics-engine/src")
 
-from math.aabb import AABB
-from math.vec2 import Vec2
+from src.core.aabb import AABB
+from src.math.vec2 import Vec2
 
 
 class Broadphase:
@@ -56,7 +56,8 @@ class Broadphase:
                     break  # No more overlaps for aabb_i
                 if self._aabb_overlap(aabb_i, aabb_j):
                     # Add the pair in a sorted order to avoid duplicates
-                    pair = tuple(sorted((id(aabb_i), id(aabb_j))))
+                    # Use the id of the Body objects instead of the AABB objects
+                    pair = tuple(sorted((id(aabb_i.body), id(aabb_j.body))))
                     self.pairs.add(pair)
 
     def _aabb_overlap(self, aabb1, aabb2):

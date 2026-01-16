@@ -168,3 +168,76 @@ class SAT:
                 mtv = axis * overlap
 
         return mtv
+
+    @staticmethod
+    def get_collision_manifold(shape1, shape2):
+        """
+        Get the collision manifold between two shapes.
+
+        Args:
+            shape1 (Shape): The first shape.
+            shape2 (Shape): The second shape.
+
+        Returns:
+            Manifold: The collision manifold.
+        """
+        if not isinstance(shape1, Shape) or not isinstance(shape2, Shape):
+            raise ValueError("Both shapes must be instances of Shape.")
+
+        # Get the vertices of both shapes
+        vertices1 = shape1.get_vertices()
+        vertices2 = shape2.get_vertices()
+
+        # Find the Minimum Translation Vector (MTV)
+        mtv = SAT.find_minimum_translation_vector(shape1, shape2)
+
+        # If there is no collision, return None
+        if mtv == Vec2.zero():
+            return None
+
+        # Find the collision normal
+        normal = mtv.normalize()
+
+        # Find the collision depth
+        depth = mtv.magnitude()
+
+        # Find the collision points
+        collision_points = []
+        for vertex in vertices1:
+            if SAT._is_point_in_shape(vertex, vertices2):
+                collision_points.append(vertex)
+        for vertex in vertices2:
+            if SAT._is_point_in_shape(vertex, vertices1):
+                collision_points.append(vertex)
+
+        # Create and return the collision manifold
+        from src.collision.manifold import Manifold
+
+        return Manifold(normal, depth, collision_points)
+
+    @staticmethod
+    def _is_point_in_shape(point, vertices):
+        """
+        Check if a point is inside a shape.
+
+        Args:
+            point (Vec2): The point to check.
+            vertices (list of Vec2): The vertices of the shape.
+
+        Returns:
+            bool: True if the point is inside the shape, False otherwise.
+        """
+        # Implement point-in-polygon algorithm
+        inside = False
+        n = len(vertices)
+        for i in range(n):
+            j = (i + 1) % n
+            if ((vertices[i].y > point.y) != (vertices[j].y > point.y)) and (
+                point.x
+                < (vertices[j].x - vertices[i].x)
+                * (point.y - vertices[i].y)
+                / (vertices[j].y - vertices[i].y)
+                + vertices[i].x
+            ):
+                inside = not inside
+        return inside

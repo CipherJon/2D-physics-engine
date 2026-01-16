@@ -136,6 +136,16 @@ class PygameDraw:
             1,
         )
 
+    def draw_world(self, world):
+        """
+        Draw the entire physics world.
+
+        Args:
+            world: The physics world to draw.
+        """
+        for body in world.bodies:
+            self.draw_body(body)
+
     def _to_screen_coordinates(self, point: Vec2):
         """
         Convert physics coordinates to screen coordinates.

@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """
-Example demonstrating a simple falling object.
+Main entry point for the physics engine.
+This script demonstrates basic usage of the physics engine by creating a simple simulation.
 """
 
 import sys
-from pathlib import Path
-
-# Add the project root to the Python path
-sys.path.append(str(Path(__file__).parent.parent))
 
 import pygame
 
@@ -20,11 +17,12 @@ from src.math.vec2 import Vec2
 
 
 def main():
+    """Main function to run the physics engine simulation."""
     # Initialize Pygame
     pygame.init()
     screen_width, screen_height = 800, 600
     screen = pygame.display.set_mode((screen_width, screen_height))
-    pygame.display.set_caption("Simple Falling Demo")
+    pygame.display.set_caption("Physics Engine Demo")
     clock = pygame.time.Clock()
 
     # Create a world
@@ -38,7 +36,7 @@ def main():
     world.add_body(ground)
 
     # Create a dynamic circle
-    circle_shape = Circle(Vec2(0, 20), 2)
+    circle_shape = Circle(Vec2(0, 20), 2.0)
     circle_body = Body(shape=circle_shape)
     world.add_body(circle_body)
 

@@ -166,19 +166,24 @@ class Polygon(Shape):
                 inside = not inside
         return inside
 
-    def get_aabb(self):
+    def get_aabb(self, body=None):
         """
         Get the axis-aligned bounding box of the polygon.
 
+        Args:
+            body (Body, optional): The body associated with the AABB.
+
         Returns:
-            tuple: The minimum and maximum vertices of the AABB.
+            AABB: The axis-aligned bounding box.
         """
+        from src.core.aabb import AABB
+
         vertices = self.get_transformed_vertices()
         min_x = min(v.x for v in vertices)
         min_y = min(v.y for v in vertices)
         max_x = max(v.x for v in vertices)
         max_y = max(v.y for v in vertices)
-        return (Vec2(min_x, min_y), Vec2(max_x, max_y))
+        return AABB(Vec2(min_x, min_y), Vec2(max_x, max_y), body)
 
     def translate(self, translation):
         """
