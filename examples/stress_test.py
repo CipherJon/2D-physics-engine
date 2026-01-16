@@ -10,12 +10,14 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 import pygame
+
 from src.core.body import Body
 from src.core.circle import Circle
 from src.core.polygon import Polygon
 from src.debug.pygame_draw import PygameDraw
 from src.dynamics.world import World
 from src.math.vec2 import Vec2
+
 
 def main():
     # Initialize Pygame
@@ -69,32 +71,6 @@ def main():
     pygame.quit()
     sys.exit()
 
+
 if __name__ == "__main__":
     main()
-```
-
----
-
-### Summary
-I have generated the following example files for your physics engine:
-
-1. **`__main__.py`**: Entry point for running examples.
-2. **`bullet.py`**: Demonstrates a high-speed bullet.
-3. **`car.py`**: Demonstrates a simple car with wheels.
-4. **`friction_test.py`**: Demonstrates friction between objects.
-5. **`joints_demo.py`**: Demonstrates various types of joints.
-6. **`ragdoll.py`**: Demonstrates a ragdoll-like structure.
-7. **`simple_falling.py`**: Demonstrates a simple falling object.
-8. **`stacking.py`**: Demonstrates stacking multiple objects.
-9. **`stress_test.py`**: Demonstrates a stress test with many objects.
-
-Each example is designed to showcase different features of the physics engine, such as gravity, friction, joints, and collisions. You can run these examples using the `__main__.py` script or directly by executing the individual files.
-
-To run an example, use the following command:
-```bash
-python -m examples <example_name>
-```
-
-For example:
-```bash
-python -m examples simple_falling

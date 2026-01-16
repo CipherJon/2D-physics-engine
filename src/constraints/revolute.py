@@ -1,6 +1,7 @@
 import math
 
 from ..core.body import Body
+from ..math.mat22 import Mat22
 from ..math.vec2 import Vec2
 
 
@@ -45,11 +46,15 @@ class RevoluteJoint:
         self._calculate_mass_matrix()
 
         # Calculate the bias
-        self.bias = self.bias_factor * (self.anchor2 - self.anchor1) / time_step
+        self.bias = (self.anchor2 - self.anchor1) * (self.bias_factor / time_step)
+        self._calculate_mass_matrix()
 
-    def solve_velocity_constraints(self):
+    def solve_velocity_constraints(self, time_step: float):
         """
         Solve the velocity constraints for the joint.
+
+        Args:
+            time_step (float): The time step for the simulation.
         """
         # Calculate the relative velocity
         velocity1 = self.body1.velocity + Vec2(

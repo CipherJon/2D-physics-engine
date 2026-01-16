@@ -113,6 +113,8 @@ class World:
         # Solve constraints (joints)
         for _ in range(self.velocity_iterations):
             for joint in self.joints:
+                if hasattr(joint, "pre_solve"):
+                    joint.pre_solve(self.time_step)
                 joint.solve_velocity_constraints(self.time_step)
 
         # Solve collisions
