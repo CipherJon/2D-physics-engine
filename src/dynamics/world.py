@@ -103,6 +103,14 @@ class World:
         self.joints.append(joint)
         logger.info(f"Added joint to the world: {joint}")
 
+        # Cache joint references on bodies for faster island building
+        if not hasattr(joint.body1, "joints"):
+            joint.body1.joints = []
+        if not hasattr(joint.body2, "joints"):
+            joint.body2.joints = []
+        joint.body1.joints.append(joint)
+        joint.body2.joints.append(joint)
+
     def remove_joint(self, joint: Joint) -> None:
         """
         Remove a joint from the simulation world.
@@ -207,24 +215,10 @@ class World:
         # Track total impulse for diagnostics
         total_impulse_magnitude = 0.0
 
-        # Solve velocity constraints (contacts + joints)
-        for _ in range(self.velocity_iterations):
-            # Solve contacts (velocity constraints)
-            contact_impulses = self._solve_contacts(collision_pairs, self.time_step)
-            for impulse_magnitude in contact_impulses:
-                total_impulse_magnitude += abs(impulse_magnitude)
-
-            # Solve joint constraints
-            for joint in self.joints:
-                if hasattr(joint, "pre_solve"):
-                    joint.pre_solve(self.time_step)
-                if hasattr(joint, "solve_velocity_constraints"):
-                    joint.solve_velocity_constraints(self.time_step)
-
         # Build islands for island-based solving
         self._build_islands(collision_pairs)
 
-        # Solve all islands
+        # Solve all islands (this handles both contacts and joints)
         for island in self.islands:
             island.solve(
                 self.time_step, self.velocity_iterations, self.position_iterations
@@ -258,6 +252,14 @@ class World:
         print(f"_solve_contacts called with {len(collision_pairs)} collision pairs")
         # Clear the contact solver
         self.contact_solver.clear_contacts()
+
+        # Limit maximum contacts to prevent performance explosion
+        max_contacts = 1024
+        if len(collision_pairs) > max_contacts:
+            print(
+                f"WARNING: Too many contacts ({len(collision_pairs)}), limiting to {max_contacts}"
+            )
+            collision_pairs = collision_pairs[:max_contacts]
 
         # Add contacts to the solver with persistence
         for body1, body2 in collision_pairs:
@@ -379,14 +381,15 @@ class World:
             body = queue.popleft()
             island.add_body(body)
 
-            # Add connected joints
-            for joint in self.joints:
-                if joint.body1 == body or joint.body2 == body:
+            # Add connected joints (using cached references for O(1) lookup)
+            if hasattr(body, "joints"):
+                for joint in body.joints:
                     other = joint.body1 if joint.body1 != body else joint.body2
-                    island.add_joint(joint)
-                    if id(other) not in visited:
-                        visited.add(id(other))
-                        queue.append(other)
+                    if joint not in island.joints:
+                        island.add_joint(joint)
+                        if id(other) not in visited:
+                            visited.add(id(other))
+                            queue.append(other)
 
             # Add connected contacts
             for pair in collision_pairs:

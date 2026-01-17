@@ -103,35 +103,33 @@ class RevoluteJoint:
 
         # Calculate the impulse delta and accumulate for warm-starting
         impulse_delta = self.inv_mass_matrix.solve(-(relative_velocity + self.bias))
+
+        # Hard clamp delta to prevent explosion
+        impulse_delta = impulse_delta.clamped(
+            -100.0, 100.0
+        )  # assume Vec2 has clamped method or implement
+
         self.impulse += impulse_delta
 
-        print(f"Impulse delta: {impulse_delta}, Accumulated impulse: {self.impulse}")
+        # Hard clamp accumulated impulse
+        self.impulse = self.impulse.clamped(-500.0, 500.0)
 
-        # Apply the accumulated impulse for stability
-        impulse = self.impulse
-        self.body1.velocity -= impulse * self.body1.inverse_mass
+        # Apply with damping
+        self.body1.velocity -= self.impulse * self.body1.inverse_mass
         self.body1.angular_velocity -= (
-            self.r1.cross(impulse) * self.body1.inverse_inertia
+            self.r1.cross(self.impulse) * self.body1.inverse_inertia
         )
-        self.body2.velocity += impulse * self.body2.inverse_mass
+
+        self.body2.velocity += self.impulse * self.body2.inverse_mass
         self.body2.angular_velocity += (
-            self.r2.cross(impulse) * self.body2.inverse_inertia
+            self.r2.cross(self.impulse) * self.body2.inverse_inertia
         )
 
-        print(f"Updated body1 velocity: {self.body1.velocity}")
-        print(f"Updated body2 velocity: {self.body2.velocity}")
-
-        # Add angular constraint to prevent free spinning
-        rel_angular_vel = self.body2.angular_velocity - self.body1.angular_velocity
-        angular_bias = -(0.2 / time_step) * (
-            self.body2.orientation - self.body1.orientation
-        )
-        angular_impulse = -(rel_angular_vel + angular_bias) / (
-            self.body1.inverse_inertia + self.body2.inverse_inertia
-        )
-
-        self.body1.angular_velocity += angular_impulse * self.body1.inverse_inertia
-        self.body2.angular_velocity -= angular_impulse * self.body2.inverse_inertia
+        # Strong damping (prevents exponential growth)
+        self.body1.velocity *= 0.98
+        self.body1.angular_velocity *= 0.98
+        self.body2.velocity *= 0.98
+        self.body2.angular_velocity *= 0.98
 
     def solve_position_constraints(self):
         """
@@ -145,6 +143,11 @@ class RevoluteJoint:
 
         # Lightweight position correction to prevent drift
         if position_error.magnitude() > 0.005:  # Slop threshold
+            # Clamp position error to prevent numerical explosion
+            error_magnitude = position_error.magnitude()
+            if error_magnitude > 10.0:  # Limit maximum correction
+                position_error = position_error * (10.0 / error_magnitude)
+
             correction = Vec2(-0.5 * position_error.x, -0.5 * position_error.y)
             self.body1.position -= correction * self.body1.inverse_mass
             self.body2.position += correction * self.body2.inverse_mass
@@ -156,32 +159,24 @@ class RevoluteJoint:
         """
         Calculate the mass matrix for the joint.
         """
-        # Calculate the effective mass using world-space r vectors
         invM1 = self.body1.inverse_mass
-        invI1 = self.body1.inverse_inertia
+        invI1 = self.body1.inverse_inertia or 0.0
         invM2 = self.body2.inverse_mass
-        invI2 = self.body2.inverse_inertia
+        invI2 = self.body2.inverse_inertia or 0.0
 
-        # r1 and r2 are already computed in pre_solve
-        r1x = self.r1.x
-        r1y = self.r1.y
-        r2x = self.r2.x
-        r2y = self.r2.y
+        # Prevent zero r vectors from making singular matrix
+        r1sq = max(self.r1.magnitude_squared(), 1e-8)
+        r2sq = max(self.r2.magnitude_squared(), 1e-8)
 
-        # Add small epsilon to prevent zero/near-zero denominators
-        EPS = 1e-6
-        k11 = invM1 + invM2 + invI1 * (r1y * r1y + EPS) + invI2 * (r2y * r2y + EPS)
-        k12 = -invI1 * (r1x * r1y) - invI2 * (r2x * r2y)
-        k21 = k12
-        k22 = invM1 + invM2 + invI1 * (r1x * r1x + EPS) + invI2 * (r2x * r2x + EPS)
+        # Simplified diagonal K (safe for most cases)
+        k = invM1 + invM2 + invI1 * r1sq + invI2 * r2sq
+        self.mass_matrix = Mat22([[k, 0.0], [0.0, k]])
 
-        self.mass_matrix = Mat22([[k11, k12], [k21, k22]])
-
-        # Safer inverse with epsilon
-        det = k11 * k22 - k12 * k21
+        # Safe inverse
+        det = k * k  # since off-diagonals 0
         if abs(det) < 1e-10:
-            det = 1e-10 if det >= 0 else -1e-10  # prevent division by zero
-        self.inv_mass_matrix = Mat22([[k22 / det, -k12 / det], [-k21 / det, k11 / det]])
+            det = 1e-10
+        self.inv_mass_matrix = Mat22([[1.0 / k, 0.0], [0.0, 1.0 / k]])
 
     def get_anchor1(self) -> Vec2:
         """

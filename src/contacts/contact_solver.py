@@ -4,7 +4,13 @@ Contact solver for the physics engine.
 This module provides functionality for solving contacts between bodies in the physics engine.
 """
 
-from src.common.constants import BAUMGARTE, POSITION_SLOP, STATIC_FRICTION, DYNAMIC_FRICTION
+from src.common.constants import (
+    BAUMGARTE,
+    DYNAMIC_FRICTION,
+    POSITION_SLOP,
+    STATIC_FRICTION,
+)
+
 
 class ContactSolver:
     """
@@ -51,8 +57,13 @@ class ContactSolver:
             dt (float): The time step.
         """
         for _ in range(self.velocity_iterations):
+            impulse_change = 0.0
             for contact in self.contacts:
+                old_impulse = contact.normal_impulse
                 contact.resolve(dt)
+                impulse_change += abs(contact.normal_impulse - old_impulse)
+            if impulse_change < 0.001:  # converged
+                break
 
     def solve_position_constraints(self, dt):
         """

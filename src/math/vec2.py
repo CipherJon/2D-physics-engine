@@ -352,3 +352,18 @@ class Vec2:
             Vec2: A unit vector in the y-direction.
         """
         return Vec2(0.0, 1.0)
+
+    def clamped(self, min_val, max_val):
+        """
+        Clamp the vector components between min_val and max_val.
+
+        Args:
+            min_val (float): The minimum value for clamping.
+            max_val (float): The maximum value for clamping.
+
+        Returns:
+            Vec2: The clamped vector.
+        """
+        return Vec2(
+            max(min_val, min(max_val, self.x)), max(min_val, min(max_val, self.y))
+        )

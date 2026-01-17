@@ -110,17 +110,21 @@ class Contact:
         logger.info(f"Baumgarte bias: {bias:.4f}")
 
         # Calculate normal impulse scalar with warm starting
-        j = -(1 + e) * velocity_along_normal + bias  # direct + bias
+        j = -(1 + e) * velocity_along_normal  # direct impulse
+        j += bias  # Add bias directly to impulse
         j += self.normal_impulse  # Warm starting
 
-        # Small minimum for resting (gravity-scale)
+        # Resting minimum — smaller value
         if abs(velocity_along_normal) < 0.05 and self.penetration > 0.005:
-            j = max(j, 0.3)  # ~ g*dt * mass = 10*0.0167 ≈ 0.167, so 0.3 is safe
+            j = max(j, 0.2)  # safe gravity counter
 
         j = max(j, 0.0)
 
-        # Early-out: separating or resting
-        if velocity_along_normal > 0.01:  # moving apart
+        # Clamp j to prevent explosion
+        j = min(j, 100.0)
+
+        # Early-out once
+        if velocity_along_normal > 0.01:
             self.normal_impulse = 0.0
             return 0.0
 

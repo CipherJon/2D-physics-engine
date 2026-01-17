@@ -79,6 +79,12 @@ class Island:
                 if hasattr(joint, "solve_velocity_constraints"):
                     joint.solve_velocity_constraints(time_step)
 
+            # Add damping to prevent exponential velocity growth
+            for body in self.bodies:
+                if not body.is_static:
+                    body.velocity *= 0.99
+                    body.angular_velocity *= 0.98
+
         for _ in range(position_iterations):
             for joint in self.joints:
                 if hasattr(joint, "solve_position_constraints"):
