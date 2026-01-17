@@ -184,6 +184,20 @@ class Vec2:
         """
         return self.x * other.y - self.y * other.x
 
+    @staticmethod
+    def cross_scalar(scalar, vec):
+        """
+        Calculate the cross product of a scalar and a vector in 2D.
+
+        Args:
+            scalar (float): The scalar (angular velocity).
+            vec (Vec2): The vector (r).
+
+        Returns:
+            Vec2: The resulting vector.
+        """
+        return Vec2(-scalar * vec.y, scalar * vec.x)
+
     def distance_to(self, other):
         """
         Calculate the distance between two vectors.

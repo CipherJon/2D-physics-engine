@@ -48,22 +48,25 @@ class RevoluteJoint:
             time_step (float): The time step for the simulation.
         """
         logger.info("Pre-solving RevoluteJoint between body1 and body2")
-        # Recalculate the local anchor points to ensure they are up-to-date
-        self.local_anchor1 = self.body1.transform.inverse_transform_point(self.anchor)
-        self.local_anchor2 = self.body2.transform.inverse_transform_point(self.anchor)
-
-        # Calculate the world anchor points
+        # Calculate the world anchor points using local anchors
         self.anchor1 = self.body1.transform.transform_point(self.local_anchor1)
         self.anchor2 = self.body2.transform.transform_point(self.local_anchor2)
+
+        # Calculate the world-space r vectors
+        self.r1 = self.anchor1 - self.body1.position
+        self.r2 = self.anchor2 - self.body2.position
 
         print(f"Anchor1: {self.anchor1}, Anchor2: {self.anchor2}")
 
         # Calculate the mass matrix
         self._calculate_mass_matrix()
 
-        # Calculate the bias to enforce the constraint
+        # Calculate the bias to enforce the constraint using Baumgarte stabilization
         position_error = self.anchor2 - self.anchor1
-        self.bias = position_error * (self.bias_factor / time_step)
+        self.bias = Vec2(
+            -(self.bias_factor / time_step) * position_error.x,
+            -(self.bias_factor / time_step) * position_error.y,
+        )
         print(f"Position error: {position_error}, Bias: {self.bias}")
 
     def solve_velocity_constraints(self, time_step: float):
@@ -87,36 +90,48 @@ class RevoluteJoint:
                 "bias not initialized. Call pre_solve before solve_velocity_constraints."
             )
 
-        # Calculate the relative velocity
-        velocity1 = self.body1.velocity + Vec2(
-            -self.body1.angular_velocity * self.local_anchor1.y,
-            self.body1.angular_velocity * self.local_anchor1.x,
+        # Calculate the relative velocity using world-space r vectors
+        velocity1 = self.body1.velocity + Vec2.cross_scalar(
+            self.body1.angular_velocity, self.r1
         )
-        velocity2 = self.body2.velocity + Vec2(
-            -self.body2.angular_velocity * self.local_anchor2.y,
-            self.body2.angular_velocity * self.local_anchor2.x,
+        velocity2 = self.body2.velocity + Vec2.cross_scalar(
+            self.body2.angular_velocity, self.r2
         )
         relative_velocity = velocity2 - velocity1
 
         print(f"Relative velocity: {relative_velocity}")
 
-        # Calculate the impulse
-        impulse = self.mass_matrix.solve(-relative_velocity - self.bias)
+        # Calculate the impulse delta and accumulate for warm-starting
+        impulse_delta = self.inv_mass_matrix.solve(-(relative_velocity + self.bias))
+        self.impulse += impulse_delta
 
-        print(f"Impulse: {impulse}")
+        print(f"Impulse delta: {impulse_delta}, Accumulated impulse: {self.impulse}")
 
-        # Apply the impulse
+        # Apply the accumulated impulse for stability
+        impulse = self.impulse
         self.body1.velocity -= impulse * self.body1.inverse_mass
         self.body1.angular_velocity -= (
-            impulse.cross(self.local_anchor1) * self.body1.inverse_inertia
+            self.r1.cross(impulse) * self.body1.inverse_inertia
         )
         self.body2.velocity += impulse * self.body2.inverse_mass
         self.body2.angular_velocity += (
-            impulse.cross(self.local_anchor2) * self.body2.inverse_inertia
+            self.r2.cross(impulse) * self.body2.inverse_inertia
         )
 
         print(f"Updated body1 velocity: {self.body1.velocity}")
         print(f"Updated body2 velocity: {self.body2.velocity}")
+
+        # Add angular constraint to prevent free spinning
+        rel_angular_vel = self.body2.angular_velocity - self.body1.angular_velocity
+        angular_bias = -(0.2 / time_step) * (
+            self.body2.orientation - self.body1.orientation
+        )
+        angular_impulse = -(rel_angular_vel + angular_bias) / (
+            self.body1.inverse_inertia + self.body2.inverse_inertia
+        )
+
+        self.body1.angular_velocity += angular_impulse * self.body1.inverse_inertia
+        self.body2.angular_velocity -= angular_impulse * self.body2.inverse_inertia
 
     def solve_position_constraints(self):
         """
@@ -128,31 +143,12 @@ class RevoluteJoint:
 
         print(f"Position error: {position_error}")
 
-        # Calculate the impulse to correct the position error
-        impulse = self.mass_matrix.solve(-position_error)
-
-        print(f"Position impulse: {impulse}")
-
-        # Apply the impulse to correct the positions
-        self.body1.position -= impulse * self.body1.inverse_mass
-        self.body1.transform.position = self.body1.position
-        self.body1.transform.rotation -= (
-            impulse.cross(self.local_anchor1) * self.body1.inverse_inertia
-        )
-        self.body2.position += impulse * self.body2.inverse_mass
-        self.body2.transform.position = self.body2.position
-        self.body2.transform.rotation += (
-            impulse.cross(self.local_anchor2) * self.body2.inverse_inertia
-        )
-
-        print(f"Updated body1 position: {self.body1.position}")
-        print(f"Updated body2 position: {self.body2.position}")
-
-        # Apply position correction to reduce position error
-        if position_error.magnitude() > 0.01:  # Small threshold to avoid jitter
-            correction = position_error * 0.2
-            self.body1.position += correction
-            self.body2.position -= correction
+        # Lightweight position correction to prevent drift
+        if position_error.magnitude() > 0.005:  # Slop threshold
+            correction = Vec2(-0.5 * position_error.x, -0.5 * position_error.y)
+            self.body1.position -= correction * self.body1.inverse_mass
+            self.body2.position += correction * self.body2.inverse_mass
+            # Update transforms
             self.body1.transform.position = self.body1.position
             self.body2.transform.position = self.body2.position
 
@@ -160,20 +156,26 @@ class RevoluteJoint:
         """
         Calculate the mass matrix for the joint.
         """
-        # Calculate the effective mass
-        r1_cross = Vec2(-self.local_anchor1.y, self.local_anchor1.x)
-        r2_cross = Vec2(-self.local_anchor2.y, self.local_anchor2.x)
+        # Calculate the effective mass using world-space r vectors
+        invM1 = self.body1.inverse_mass
+        invI1 = self.body1.inverse_inertia
+        invM2 = self.body2.inverse_mass
+        invI2 = self.body2.inverse_inertia
 
-        k1 = (
-            self.body1.inverse_mass
-            + self.body1.inverse_inertia * r1_cross.magnitude_squared()
-        )
-        k2 = (
-            self.body2.inverse_mass
-            + self.body2.inverse_inertia * r2_cross.magnitude_squared()
-        )
+        # r1 and r2 are already computed in pre_solve
+        r1x = self.r1.x
+        r1y = self.r1.y
+        r2x = self.r2.x
+        r2y = self.r2.y
 
-        self.mass_matrix = Mat22([[k1 + k2, 0.0], [0.0, k1 + k2]])
+        # Full K (inverse effective mass) matrix elements with cross terms
+        k11 = invM1 + invM2 + invI1 * (r1y * r1y) + invI2 * (r2y * r2y)
+        k12 = -invI1 * (r1x * r1y) - invI2 * (r2x * r2y)
+        k21 = k12
+        k22 = invM1 + invM2 + invI1 * (r1x * r1x) + invI2 * (r2x * r2x)
+
+        self.mass_matrix = Mat22([[k11, k12], [k21, k22]])
+        self.inv_mass_matrix = self.mass_matrix.inverse()
 
     def get_anchor1(self) -> Vec2:
         """
