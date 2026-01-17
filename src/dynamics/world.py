@@ -226,7 +226,9 @@ class World:
 
         # Solve all islands
         for island in self.islands:
-            island.solve(self.time_step)
+            island.solve(
+                self.time_step, self.velocity_iterations, self.position_iterations
+            )
 
         # Integrate positions
         for body in self.bodies:

@@ -113,22 +113,13 @@ class Contact:
         j = -(1 + e) * velocity_along_normal + bias  # direct + bias
         j += self.normal_impulse  # Warm starting
 
-        # Remove or reduce min_impulse to prevent over-correction
-        if abs(velocity_along_normal) < 0.1 and self.penetration > 0.01:
-            min_impulse = 0.5  # Small value to counteract gravity
-            j = max(j, min_impulse)
-            logger.info(f"Applied minimum impulse: {j:.4f}")
+        # Small minimum for resting (gravity-scale)
+        if abs(velocity_along_normal) < 0.05 and self.penetration > 0.005:
+            j = max(j, 0.3)  # ~ g*dt * mass = 10*0.0167 ≈ 0.167, so 0.3 is safe
 
-        # Force-fix impulse strength (temporary band-aid for ground test)
-        if self.penetration > 0.01 and velocity_along_normal < 0.1:
-            j = max(j, 0.5)  # gravity-scale impulse per frame
-
-        logger.info(f"Normal impulse scalar: {j:.4f}")
-
-        # Clamp the impulse to prevent excessive values
         j = max(j, 0.0)
 
-        # Check if bodies are moving apart
+        # Early-out: separating or resting
         if velocity_along_normal > 0.01:  # moving apart
             self.normal_impulse = 0.0
             return 0.0

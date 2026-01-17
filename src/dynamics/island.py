@@ -58,26 +58,28 @@ class Island:
         self.joints.clear()
         self.contacts.clear()
 
-    def solve(self, time_step):
+    def solve(self, time_step, velocity_iterations=40, position_iterations=15):
         """
         Solve the island.
 
         Args:
             time_step (float): The time step for the simulation.
+            velocity_iterations (int): The number of velocity iterations.
+            position_iterations (int): The number of position iterations.
         """
         for joint in self.joints:
             if hasattr(joint, "pre_solve"):
                 joint.pre_solve(time_step)
 
-        for _ in range(8):
+        for _ in range(velocity_iterations):
             for contact in self.contacts:
-                contact.resolve()
+                contact.resolve(time_step)
 
             for joint in self.joints:
                 if hasattr(joint, "solve_velocity_constraints"):
                     joint.solve_velocity_constraints(time_step)
 
-        for _ in range(3):
+        for _ in range(position_iterations):
             for joint in self.joints:
                 if hasattr(joint, "solve_position_constraints"):
                     joint.solve_position_constraints()

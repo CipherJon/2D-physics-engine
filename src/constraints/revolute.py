@@ -168,14 +168,20 @@ class RevoluteJoint:
         r2x = self.r2.x
         r2y = self.r2.y
 
-        # Full K (inverse effective mass) matrix elements with cross terms
-        k11 = invM1 + invM2 + invI1 * (r1y * r1y) + invI2 * (r2y * r2y)
+        # Add small epsilon to prevent zero/near-zero denominators
+        EPS = 1e-6
+        k11 = invM1 + invM2 + invI1 * (r1y * r1y + EPS) + invI2 * (r2y * r2y + EPS)
         k12 = -invI1 * (r1x * r1y) - invI2 * (r2x * r2y)
         k21 = k12
-        k22 = invM1 + invM2 + invI1 * (r1x * r1x) + invI2 * (r2x * r2x)
+        k22 = invM1 + invM2 + invI1 * (r1x * r1x + EPS) + invI2 * (r2x * r2x + EPS)
 
         self.mass_matrix = Mat22([[k11, k12], [k21, k22]])
-        self.inv_mass_matrix = self.mass_matrix.inverse()
+
+        # Safer inverse with epsilon
+        det = k11 * k22 - k12 * k21
+        if abs(det) < 1e-10:
+            det = 1e-10 if det >= 0 else -1e-10  # prevent division by zero
+        self.inv_mass_matrix = Mat22([[k22 / det, -k12 / det], [-k21 / det, k11 / det]])
 
     def get_anchor1(self) -> Vec2:
         """
