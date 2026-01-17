@@ -246,14 +246,6 @@ class World:
                 f"Total impulse applied this step: {total_impulse_magnitude:.4f}\n"
             )
 
-        # Correct positions (joints)
-        for _ in range(self.position_iterations):
-            for joint in self.joints:
-                if hasattr(joint, "pre_solve"):
-                    joint.pre_solve(self.time_step)
-                if hasattr(joint, "solve_position_constraints"):
-                    joint.solve_position_constraints()
-
     def _solve_contacts(self, collision_pairs, dt):
         """
         Solve contacts using the contact solver with persistence.

@@ -66,18 +66,22 @@ class Island:
             time_step (float): The time step for the simulation.
         """
         for joint in self.joints:
-            joint.pre_solve(time_step)
+            if hasattr(joint, "pre_solve"):
+                joint.pre_solve(time_step)
 
         for _ in range(8):
             for contact in self.contacts:
                 contact.resolve()
 
             for joint in self.joints:
-                joint.solve_velocity_constraints()
+                if hasattr(joint, "solve_velocity_constraints"):
+                    joint.solve_velocity_constraints(time_step)
 
         for _ in range(3):
             for joint in self.joints:
-                joint.solve_position_constraints()
+                if hasattr(joint, "solve_position_constraints"):
+                    joint.solve_position_constraints()
 
         for joint in self.joints:
-            joint.post_solve()
+            if hasattr(joint, "post_solve"):
+                joint.post_solve()

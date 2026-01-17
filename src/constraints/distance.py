@@ -157,6 +157,27 @@ class DistanceJoint:
             self.body2.inverse_inertia * self.anchor2.cross(impulse_vector)
         )
 
+    def pre_solve(self, time_step: float):
+        """
+        Prepare for solving (compute world anchors, bias, etc.).
+        """
+        # World anchors
+        self.world_anchor1 = self.body1.position + self.anchor1
+        self.world_anchor2 = self.body2.position + self.anchor2
+
+        # Direction and current length
+        self.direction = self.world_anchor2 - self.world_anchor1
+        self.current_length = (
+            self.direction.magnitude() if self.direction.magnitude() > 1e-6 else 1.0
+        )
+        self.direction = self.direction / self.current_length
+
+        # Bias for position error (Baumgarte)
+        position_error = self.current_length - self.length
+        self.bias = (
+            -(0.2 / time_step) * position_error * self.direction
+        )  # negative to correct
+
     def get_reaction_force(self, dt: float) -> Vec2:
         """
         Get the reaction force of the distance joint.

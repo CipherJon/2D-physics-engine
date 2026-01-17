@@ -110,7 +110,7 @@ class Contact:
         logger.info(f"Baumgarte bias: {bias:.4f}")
 
         # Calculate normal impulse scalar with warm starting
-        j = -(1 + e) * velocity_along_normal + bias
+        j = -(1 + e) * velocity_along_normal + bias  # direct + bias
         j += self.normal_impulse  # Warm starting
 
         # Remove or reduce min_impulse to prevent over-correction
@@ -129,8 +129,8 @@ class Contact:
         j = max(j, 0.0)
 
         # Check if bodies are moving apart
-        if velocity_along_normal > 0.0:  # moving apart
-            logger.info("Bodies are moving apart, skipping impulse application")
+        if velocity_along_normal > 0.01:  # moving apart
+            self.normal_impulse = 0.0
             return 0.0
 
         # Apply normal impulse
