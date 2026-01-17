@@ -37,10 +37,14 @@ class BodyShapeWrapper(Shape):
         logger.info(f"Body position: {self.body.position}")
 
         if hasattr(self.original_shape, "center"):  # Circle
-            # For circles, vertices are already calculated relative to circle center
-            # The circle's center should already be relative to body position, so no adjustment needed
-            logger.info(f"Circle vertices (already in world coordinates): {vertices}")
-            return vertices
+            # For circles, vertices are calculated relative to circle center
+            # Adjust each vertex by body position
+            adjusted_vertices = []
+            for vertex in vertices:
+                adjusted_vertex = vertex + self.body.position
+                adjusted_vertices.append(adjusted_vertex)
+            logger.info(f"Adjusted circle vertices: {adjusted_vertices}")
+            return adjusted_vertices
         else:  # Polygon or other shapes
             # For polygons, adjust each vertex by body position
             adjusted_vertices = []

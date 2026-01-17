@@ -58,6 +58,10 @@ class Body:
         # Initialize transformation
         self.transform = Transform(position, 0.0)
 
+        # Initialize sleeping state
+        self.sleep_timer = 0.0
+        self.is_sleeping = False
+
     def __str__(self) -> str:
         """
         Return a string representation of the body.
@@ -105,6 +109,21 @@ class Body:
             dt (float): The time step.
         """
         if self.is_static:
+            return
+
+        # Check if the body should be sleeping
+        vel_mag = self.velocity.magnitude()
+        ang_mag = abs(self.angular_velocity)
+        if vel_mag < 0.1 and ang_mag < 0.01:
+            self.sleep_timer += dt
+            if self.sleep_timer > 0.5:  # 0.5s threshold
+                self.is_sleeping = True
+        else:
+            self.sleep_timer = 0
+            self.is_sleeping = False
+
+        # Skip updates if the body is sleeping
+        if self.is_sleeping:
             return
 
         # Update velocity and angular velocity
@@ -171,7 +190,7 @@ class Body:
         Args:
             time_step (float): The time step for integration.
         """
-        if not self.is_static:
+        if not self.is_static and not self.is_sleeping:
             self.velocity += self.force * self.inverse_mass * time_step
             self.angular_velocity += self.torque * self.inverse_inertia * time_step
             self.orientation += self.angular_velocity * time_step
@@ -186,7 +205,7 @@ class Body:
         Args:
             time_step (float): The time step for integration.
         """
-        if not self.is_static:
+        if not self.is_static and not self.is_sleeping:
             self.position += self.velocity * time_step
             self.transform.position = self.position
 

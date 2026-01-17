@@ -3,6 +3,7 @@ A class to represent the simulation world in a physics engine.
 """
 
 import logging
+from collections import deque
 from typing import List, Optional
 
 from ..collision.broadphase import Broadphase
@@ -11,6 +12,7 @@ from ..collision.narrowphase import Narrowphase
 from ..constraints.joint import Joint
 from ..contacts.contact_solver import ContactSolver
 from ..core.body import Body
+from ..dynamics.island import Island
 from ..math.vec2 import Vec2
 
 # Configure logging
@@ -46,6 +48,7 @@ class World:
         self.contact_persistence_threshold = (
             0.05  # Distance threshold for contact persistence
         )
+        self.islands = []  # List of islands for island-based solving
 
     def add_body(self, body: Body) -> None:
         """
@@ -190,7 +193,7 @@ class World:
 
         # Apply forces (e.g., gravity)
         for body in self.bodies:
-            if not body.is_static:
+            if not body.is_static and not body.is_sleeping:
                 body.apply_force(self.gravity * body.mass)
                 logger.debug(
                     f"Applied gravity to body at {body.position}: force={self.gravity * body.mass}"
@@ -198,7 +201,7 @@ class World:
 
         # Integrate velocities
         for body in self.bodies:
-            if not body.is_static:
+            if not body.is_static and not body.is_sleeping:
                 body.integrate_velocity(self.time_step)
 
         # Track total impulse for diagnostics
@@ -218,17 +221,16 @@ class World:
                 if hasattr(joint, "solve_velocity_constraints"):
                     joint.solve_velocity_constraints(self.time_step)
 
-        # Solve position constraints separately
-        for _ in range(self.position_iterations):
-            self.contact_solver.solve_position_constraints(self.time_step)
+        # Build islands for island-based solving
+        self._build_islands(collision_pairs)
 
-        # Solve position constraints separately
-        for _ in range(self.position_iterations):
-            self.contact_solver.solve_position_constraints(self.time_step)
+        # Solve all islands
+        for island in self.islands:
+            island.solve(self.time_step)
 
         # Integrate positions
         for body in self.bodies:
-            if not body.is_static:
+            if not body.is_static and not body.is_sleeping:
                 body.integrate_position(self.time_step)
 
         # Diagnostic: Solver input
@@ -269,8 +271,8 @@ class World:
             print(f"Manifold for {body1.position} vs {body2.position}: {manifold}")
 
             if manifold is not None:
-                # Check for persistent contacts
-                contact_key = (id(body1), id(body2))
+                # Check for persistent contacts using order-independent key
+                contact_key = frozenset({id(body1), id(body2)})
                 if contact_key in self.active_contacts:
                     # Reuse existing contact with accumulated impulses
                     contact = self.active_contacts[contact_key]
@@ -279,7 +281,7 @@ class World:
                     contact.contact_point = (
                         manifold.points[0] if manifold.points else body1.position
                     )
-                    print(f"Reusing persistent contact: {contact}")
+                    print(f"REUSING persistent contact: {contact}")
                 else:
                     # Create new contact
                     contact = Contact(
@@ -291,7 +293,7 @@ class World:
                         if manifold.points
                         else body1.position,
                     )
-                    print(f"Adding new contact: {contact}")
+                    print(f"NEW contact: {contact}")
                     # Store the new contact for persistence
                     self.active_contacts[contact_key] = contact
 
@@ -299,13 +301,108 @@ class World:
             else:
                 print(f"No manifold for {body1.position} vs {body2.position}")
                 # Remove from active contacts if no longer colliding
-                contact_key = (id(body1), id(body2))
+                contact_key = frozenset({id(body1), id(body2)})
                 if contact_key in self.active_contacts:
                     del self.active_contacts[contact_key]
+
+        # Clean up old contacts that are no longer colliding
+        current_contact_keys = [
+            frozenset({id(body1), id(body2)}) for body1, body2 in collision_pairs
+        ]
+        keys_to_remove = []
+        for key in self.active_contacts:
+            if key not in current_contact_keys:
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            del self.active_contacts[key]
 
         # Solve the contacts and return impulse magnitudes
         impulse_magnitudes = self.contact_solver.solve(dt)
         return impulse_magnitudes
+
+    def _get_or_create_contact(self, body1, body2, manifold):
+        """
+        Get or create a contact for the given body pair and manifold.
+
+        Args:
+            body1: The first body.
+            body2: The second body.
+            manifold: The collision manifold.
+
+        Returns:
+            Contact: The contact.
+        """
+        contact_key = frozenset({id(body1), id(body2)})
+        if contact_key in self.active_contacts:
+            contact = self.active_contacts[contact_key]
+            contact.normal = manifold.normal
+            contact.penetration = manifold.depth
+            contact.contact_point = (
+                manifold.points[0] if manifold.points else body1.position
+            )
+        else:
+            contact = Contact(
+                body_a=body1,
+                body_b=body2,
+                normal=manifold.normal,
+                penetration=manifold.depth,
+                contact_point=manifold.points[0] if manifold.points else body1.position,
+            )
+            self.active_contacts[contact_key] = contact
+        return contact
+
+    def _build_islands(self, collision_pairs):
+        """
+        Build islands of connected bodies, joints, and contacts.
+
+        Args:
+            collision_pairs (list): List of colliding body pairs.
+        """
+        self.islands = []
+        visited = set()
+
+        for body in self.bodies:
+            if id(body) in visited:
+                continue
+            island = Island()
+            self._build_island(body, island, visited, collision_pairs)
+            self.islands.append(island)
+
+    def _build_island(self, start_body, island, visited, collision_pairs):
+        """
+        Build an island of connected bodies, joints, and contacts.
+
+        Args:
+            start_body: The starting body for the island.
+            island: The island to build.
+            visited: Set of visited body IDs.
+            collision_pairs: List of colliding body pairs.
+        """
+        queue = deque([start_body])
+        visited.add(id(start_body))
+
+        while queue:
+            body = queue.popleft()
+            island.add_body(body)
+
+            # Add connected joints
+            for joint in self.joints:
+                if joint.body1 == body or joint.body2 == body:
+                    other = joint.body1 if joint.body1 != body else joint.body2
+                    island.add_joint(joint)
+                    if id(other) not in visited:
+                        visited.add(id(other))
+                        queue.append(other)
+
+            # Add connected contacts
+            for pair in collision_pairs:
+                if pair[0] == body or pair[1] == body:
+                    manifold = self.narrowphase.get_collision_manifold(pair[0], pair[1])
+                    if manifold:
+                        contact = self._get_or_create_contact(
+                            pair[0], pair[1], manifold
+                        )
+                        island.add_contact(contact)
 
     def clear(self) -> None:
         """
