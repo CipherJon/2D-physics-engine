@@ -139,9 +139,15 @@ class Circle(Shape):
         """
         from src.core.aabb import AABB
 
+        # Calculate the world position of the circle's center
+        if body:
+            center = body.position + self.center
+        else:
+            center = self.center
+
         return AABB(
-            Vec2(self.center.x - self.radius, self.center.y - self.radius),
-            Vec2(self.center.x + self.radius, self.center.y + self.radius),
+            Vec2(center.x - self.radius, center.y - self.radius),
+            Vec2(center.x + self.radius, center.y + self.radius),
             body,
         )
 

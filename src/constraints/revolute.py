@@ -5,11 +5,9 @@ from ..math.mat22 import Mat22
 from ..math.vec2 import Vec2
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.DEBUG, format="%(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -40,6 +38,8 @@ class RevoluteJoint:
         self.softness = 0.0
         self.impulse = Vec2(0.0, 0.0)
 
+        print(f"Initialized RevoluteJoint with anchor: {anchor}")
+
     def pre_solve(self, time_step: float):
         """
         Prepare the joint for solving.
@@ -48,23 +48,27 @@ class RevoluteJoint:
             time_step (float): The time step for the simulation.
         """
         logger.info("Pre-solving RevoluteJoint between body1 and body2")
+        # Recalculate the local anchor points to ensure they are up-to-date
+        self.local_anchor1 = self.body1.transform.inverse_transform_point(self.anchor)
+        self.local_anchor2 = self.body2.transform.inverse_transform_point(self.anchor)
+
         # Calculate the world anchor points
         self.anchor1 = self.body1.transform.transform_point(self.local_anchor1)
         self.anchor2 = self.body2.transform.transform_point(self.local_anchor2)
 
+        print(f"Anchor1: {self.anchor1}, Anchor2: {self.anchor2}")
+
         # Calculate the mass matrix
         self._calculate_mass_matrix()
 
-        # Calculate the bias
-        self.bias = (self.anchor2 - self.anchor1) * (self.bias_factor / time_step)
-        self._calculate_mass_matrix()
+        # Calculate the bias to enforce the constraint
+        position_error = self.anchor2 - self.anchor1
+        self.bias = position_error * (self.bias_factor / time_step)
+        print(f"Position error: {position_error}, Bias: {self.bias}")
 
     def solve_velocity_constraints(self, time_step: float):
         """
         Solve the velocity constraints for the joint.
-
-        Args:
-            time_step (float): The time step for the simulation.
         """
         logger.info("Solving velocity constraints for RevoluteJoint")
         # Ensure mass_matrix and bias are available
@@ -94,8 +98,12 @@ class RevoluteJoint:
         )
         relative_velocity = velocity2 - velocity1
 
+        print(f"Relative velocity: {relative_velocity}")
+
         # Calculate the impulse
         impulse = self.mass_matrix.solve(-relative_velocity - self.bias)
+
+        print(f"Impulse: {impulse}")
 
         # Apply the impulse
         self.body1.velocity -= impulse * self.body1.inverse_mass
@@ -107,6 +115,9 @@ class RevoluteJoint:
             impulse.cross(self.local_anchor2) * self.body2.inverse_inertia
         )
 
+        print(f"Updated body1 velocity: {self.body1.velocity}")
+        print(f"Updated body2 velocity: {self.body2.velocity}")
+
     def solve_position_constraints(self):
         """
         Solve the position constraints for the joint.
@@ -115,10 +126,14 @@ class RevoluteJoint:
         # Calculate the position error
         position_error = self.anchor2 - self.anchor1
 
-        # Calculate the impulse
+        print(f"Position error: {position_error}")
+
+        # Calculate the impulse to correct the position error
         impulse = self.mass_matrix.solve(-position_error)
 
-        # Apply the impulse
+        print(f"Position impulse: {impulse}")
+
+        # Apply the impulse to correct the positions
         self.body1.position -= impulse * self.body1.inverse_mass
         self.body1.transform.position = self.body1.position
         self.body1.transform.rotation -= (
@@ -129,6 +144,17 @@ class RevoluteJoint:
         self.body2.transform.rotation += (
             impulse.cross(self.local_anchor2) * self.body2.inverse_inertia
         )
+
+        print(f"Updated body1 position: {self.body1.position}")
+        print(f"Updated body2 position: {self.body2.position}")
+
+        # Apply position correction to reduce position error
+        if position_error.magnitude() > 0.01:  # Small threshold to avoid jitter
+            correction = position_error * 0.2
+            self.body1.position += correction
+            self.body2.position -= correction
+            self.body1.transform.position = self.body1.position
+            self.body2.transform.position = self.body2.position
 
     def _calculate_mass_matrix(self):
         """

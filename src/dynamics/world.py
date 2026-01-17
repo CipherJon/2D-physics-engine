@@ -6,8 +6,10 @@ import logging
 from typing import List, Optional
 
 from ..collision.broadphase import Broadphase
+from ..collision.contact import Contact
 from ..collision.narrowphase import Narrowphase
 from ..constraints.joint import Joint
+from ..contacts.contact_solver import ContactSolver
 from ..core.body import Body
 from ..math.vec2 import Vec2
 
@@ -33,9 +35,14 @@ class World:
         self.joints: List[Joint] = []
         self.broadphase = Broadphase()
         self.narrowphase = Narrowphase()
+        self.contact_solver = ContactSolver(
+            velocity_iterations=8, position_iterations=3
+        )
         self.time_step: float = 1.0 / 60.0
         self.velocity_iterations: int = 8
         self.position_iterations: int = 3
+        self.step_count: int = 0
+        self.active_contacts = {}  # Track persistent contacts across frames
 
     def add_body(self, body: Body) -> None:
         """
@@ -132,7 +139,19 @@ class World:
         if position_iterations is not None:
             self.position_iterations = position_iterations
 
+        self.step_count += 1
+        logger.info(
+            f"\n=== Step {self.step_count} (t={self.time_step * self.step_count:.2f}s) ==="
+        )
         logger.info(f"Stepping simulation with time_step={self.time_step}")
+
+        # Diagnostic prints - initial state
+        dynamic_bodies = [body for body in self.bodies if not body.is_static]
+        if dynamic_bodies:
+            body = dynamic_bodies[0]
+            logger.info(
+                f"Step start | pos.y = {body.position.y:.3f} | vel.y = {body.velocity.y:.3f}"
+            )
 
         # Update the broad-phase collision detector
         self.broadphase.update()
@@ -149,32 +168,70 @@ class World:
             if self.narrowphase.detect_collision(body1, body2):
                 collision_pairs.append((body1, body2))
 
+        # Diagnostic: Contact detection results
+        logger.info(f"Broadphase found {len(potential_pairs)} potential pairs")
+        logger.info(
+            f"Narrowphase confirmed {len(collision_pairs)} actual collision pairs"
+        )
+
+        # Additional contact diagnostics
+        if collision_pairs:
+            for i, (body1, body2) in enumerate(collision_pairs):
+                logger.info(
+                    f"  Collision pair {i}: Body at {body1.position} vs Body at {body2.position}"
+                )
+        else:
+            logger.info(
+                "  WARNING: No contacts detected despite potential for collisions!"
+            )
+
         # Apply forces (e.g., gravity)
         for body in self.bodies:
             if not body.is_static:
                 body.apply_force(self.gravity * body.mass)
+                logger.debug(
+                    f"Applied gravity to body at {body.position}: force={self.gravity * body.mass}"
+                )
 
         # Integrate velocities
         for body in self.bodies:
             if not body.is_static:
                 body.integrate_velocity(self.time_step)
 
-        # Solve constraints (joints)
+        # Track total impulse for diagnostics
+        total_impulse_magnitude = 0.0
+
+        # Solve velocity constraints (contacts + joints)
         for _ in range(self.velocity_iterations):
+            # Solve contacts (velocity constraints)
+            contact_impulses = self._solve_contacts(collision_pairs, self.time_step)
+            for impulse_magnitude in contact_impulses:
+                total_impulse_magnitude += abs(impulse_magnitude)
+
+            # Solve joint constraints
             for joint in self.joints:
                 if hasattr(joint, "pre_solve"):
                     joint.pre_solve(self.time_step)
                 if hasattr(joint, "solve_velocity_constraints"):
                     joint.solve_velocity_constraints(self.time_step)
 
-        # Solve collisions
-        for body1, body2 in collision_pairs:
-            self.narrowphase.resolve_collision(body1, body2)
-
         # Integrate positions
         for body in self.bodies:
             if not body.is_static:
                 body.integrate_position(self.time_step)
+
+        # Diagnostic: Solver input
+        logger.info(f"Contacts being processed by solver: {len(collision_pairs)}")
+
+        # Diagnostic prints - final state
+        if dynamic_bodies:
+            body = dynamic_bodies[0]
+            logger.info(
+                f"Step end | pos.y = {body.position.y:.3f} | vel.y = {body.velocity.y:.3f}"
+            )
+            logger.info(
+                f"Total impulse applied this step: {total_impulse_magnitude:.4f}\n"
+            )
 
         # Correct positions (joints)
         for _ in range(self.position_iterations):
@@ -183,6 +240,40 @@ class World:
                     joint.pre_solve(self.time_step)
                 if hasattr(joint, "solve_position_constraints"):
                     joint.solve_position_constraints()
+
+    def _solve_contacts(self, collision_pairs, dt):
+        """
+        Solve contacts using the contact solver.
+
+        Args:
+            collision_pairs (list): List of colliding body pairs.
+        """
+        print(f"_solve_contacts called with {len(collision_pairs)} collision pairs")
+        # Clear the contact solver
+        self.contact_solver.clear_contacts()
+
+        # Add contacts to the solver
+        for body1, body2 in collision_pairs:
+            manifold = self.narrowphase.get_collision_manifold(body1, body2)
+            print(f"Manifold for {body1.position} vs {body2.position}: {manifold}")
+            if manifold is not None:
+                contact = Contact(
+                    body_a=body1,
+                    body_b=body2,
+                    normal=manifold.normal,
+                    penetration=manifold.depth,
+                    contact_point=manifold.points[0]
+                    if manifold.points
+                    else body1.position,
+                )
+                print(f"Adding contact: {contact}")
+                self.contact_solver.add_contact(contact)
+            else:
+                print(f"No manifold for {body1.position} vs {body2.position}")
+
+        # Solve the contacts and return impulse magnitudes
+        impulse_magnitudes = self.contact_solver.solve(dt)
+        return impulse_magnitudes
 
     def clear(self) -> None:
         """

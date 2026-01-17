@@ -1,13 +1,23 @@
-import math
+import logging
 
 from ..core.shape import Shape
 from ..math.vec2 import Vec2
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG, format="%(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 class SAT:
     """
     Separating Axis Theorem (SAT) for collision detection between convex polygons.
     """
+
+    # Position tolerance constants
+    PENETRATION_TOLERANCE = 0.01  # Allow tiny penetrations to be treated as contact
+    SEPARATION_TOLERANCE = 0.005  # Allow tiny gaps to be treated as contact
 
     @staticmethod
     def detect_collision(shape1, shape2):
@@ -37,8 +47,10 @@ class SAT:
         # Test each axis for separation
         for axis in axes:
             if SAT._is_separating_axis(vertices1, vertices2, axis):
+                logger.info(f"Separating axis found: {axis}")
                 return False
 
+        logger.info("No separating axis found, collision detected")
         return True
 
     @staticmethod
@@ -89,8 +101,14 @@ class SAT:
 
         # Check for overlap
         if max1 < min2 or max2 < min1:
+            logger.info(
+                f"Separating axis found: {axis} (max1={max1}, min2={min2}, max2={max2}, min1={min1})"
+            )
             return True
 
+        logger.info(
+            f"No separating axis found: {axis} (max1={max1}, min2={min2}, max2={max2}, min1={min1})"
+        )
         return False
 
     @staticmethod
@@ -158,8 +176,13 @@ class SAT:
             # Calculate the overlap
             overlap = min(max1, max2) - max(min1, min2)
 
+            # Log the overlap for debugging
+            logger.info(f"Overlap on axis {axis}: {overlap}")
+
             # If there is no overlap, the shapes are not colliding
-            if overlap <= 0:
+            # Use position tolerance to handle tiny gaps or penetrations
+            if overlap < -SAT.SEPARATION_TOLERANCE:
+                logger.info("Separating axis found, no collision")
                 return Vec2.zero()
 
             # If the overlap is smaller than the current minimum, update the MTV
@@ -167,6 +190,7 @@ class SAT:
                 min_overlap = overlap
                 mtv = axis * overlap
 
+        logger.info(f"Final MTV: {mtv}")
         return mtv
 
     @staticmethod
@@ -192,8 +216,27 @@ class SAT:
         mtv = SAT.find_minimum_translation_vector(shape1, shape2)
 
         # If there is no collision, return None
+        # But treat zero MTV (just touching) as a collision for physics stability
         if mtv == Vec2.zero():
-            return None
+            # Check if shapes are just touching by testing a few axes
+            # Find an axis where shapes are closest
+            test_axes = SAT._find_axes(
+                vertices1[:4] + vertices2[:4]
+            )  # Use first few vertices
+            for axis in test_axes:
+                min1, max1 = SAT._project_vertices(vertices1, axis)
+                min2, max2 = SAT._project_vertices(vertices2, axis)
+                overlap = min(max1, max2) - max(min1, min2)
+                if abs(overlap) < SAT.PENETRATION_TOLERANCE:
+                    # Shapes are just touching, create a small penetration
+                    mtv = axis * SAT.PENETRATION_TOLERANCE
+                    break
+            if mtv == Vec2.zero():
+                return None
+
+        # Apply position tolerance to treat tiny gaps or penetrations as contacts
+        if mtv.magnitude() < SAT.PENETRATION_TOLERANCE:
+            mtv = mtv.normalize() * SAT.PENETRATION_TOLERANCE
 
         # Find the collision normal
         normal = mtv.normalize()

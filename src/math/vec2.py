@@ -62,6 +62,18 @@ class Vec2:
         else:
             return Vec2(self.x * other, self.y * other)
 
+    def __rmul__(self, other):
+        """
+        Multiply a scalar by a vector (reverse multiplication).
+
+        Args:
+            other (float): The scalar to multiply by.
+
+        Returns:
+            Vec2: The resulting vector.
+        """
+        return Vec2(other * self.x, other * self.y)
+
     def __truediv__(self, other):
         """
         Divide a vector by a scalar or another vector (element-wise).

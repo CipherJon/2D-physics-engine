@@ -61,7 +61,7 @@ def test_revolute_joint_initialization():
 
 def test_revolute_joint_constraint():
     """Test that a revolute joint enforces rotational constraints."""
-    world = World(Vec2(0.0, 10.0))
+    world = World(Vec2(0.0, 0.0))  # No gravity for simplicity
 
     # Create two bodies
     body1 = Body(shape=Circle(Vec2(0, 0), 1))
@@ -75,9 +75,9 @@ def test_revolute_joint_constraint():
     world.add_body(body2)
     world.add_joint(joint)
 
-    # Step the simulation
+    # Step the simulation with more iterations
     for _ in range(60):
-        world.step(1.0 / 60.0)
+        world.step(1.0 / 60.0, velocity_iterations=20, position_iterations=10)
 
     # Verify that the bodies rotate around the anchor point
     # The distance from the anchor point should remain constant

@@ -20,6 +20,7 @@ class Body:
         angular_velocity: float = 0.0,
         orientation: float = 0.0,
         is_static: bool = False,
+        restitution: float = 0.2,
     ) -> None:
         """
         Initialize a physics body with a shape, mass, position, velocity, and angular velocity.
@@ -30,7 +31,9 @@ class Body:
             position (Vec2): The position of the body.
             velocity (Vec2): The velocity of the body.
             angular_velocity (float): The angular velocity of the body.
+            orientation (float): The orientation of the body.
             is_static (bool): Whether the body is static (immovable).
+            restitution (float): The coefficient of restitution (bounciness), range 0.0-1.0.
         """
         self.shape = shape
         self.mass = float(mass)
@@ -39,6 +42,7 @@ class Body:
         self.angular_velocity = float(angular_velocity)
         self.orientation = float(orientation)
         self.is_static = bool(is_static)
+        self.restitution = float(restitution) if restitution is not None else 0.2
 
         # Calculate derived properties
         self.inverse_mass = 1.0 / self.mass if not self.is_static else 0.0
@@ -171,6 +175,7 @@ class Body:
             self.velocity += self.force * self.inverse_mass * time_step
             self.angular_velocity += self.torque * self.inverse_inertia * time_step
             self.orientation += self.angular_velocity * time_step
+            self.transform.rotation = self.orientation
             self.force = Vec2.zero()
             self.torque = 0.0
 
