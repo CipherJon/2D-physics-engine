@@ -16,10 +16,10 @@ from src.math.vec2 import Vec2
 
 def test_basic_gravity():
     """Test that gravity works without any collision."""
-    world = World(Vec2(0.0, 10.0))  # Gravity
+    world = World(Vec2(0.0, -10.0))  # Gravity
 
     # Create a dynamic body in air
-    body = Body(shape=Circle(Vec2(0, 10), 1))
+    body = Body(shape=Circle(Vec2(0, 10), 1), position=Vec2(0, 10))
     body.velocity = Vec2(0, 0)  # No initial velocity
     world.add_body(body)
 
@@ -33,11 +33,11 @@ def test_basic_gravity():
             f"Step {i}: position={body.position.y:.2f}, velocity={body.velocity.y:.2f}"
         )
 
-    # After 1 second with gravity=10, expected position:
-    # y = initial_y + 0.5 * g * t^2 = 10 + 0.5 * 10 * 1^2 = 15
-    # Expected velocity: v = g * t = 10 * 1 = 10
-    expected_position = 10 + 0.5 * 10 * (1.0) ** 2  # 15.0
-    expected_velocity = 10 * 1.0  # 10.0
+    # After 1 second with gravity=-10, expected position:
+    # y = initial_y + 0.5 * g * t^2 = 10 + 0.5 * (-10) * 1^2 = 5
+    # Expected velocity: v = g * t = -10 * 1 = -10
+    expected_position = 10 + 0.5 * (-10) * (1.0) ** 2  # 5.0
+    expected_velocity = -10 * 1.0  # -10.0
 
     print(f"Final position: {body.position.y:.2f} (expected: {expected_position:.2f})")
     print(f"Final velocity: {body.velocity.y:.2f} (expected: {expected_velocity:.2f})")

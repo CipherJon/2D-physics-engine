@@ -22,7 +22,7 @@ class ContactSolver:
         position_iterations (int): The number of position iterations.
     """
 
-    def __init__(self, velocity_iterations=40, position_iterations=15):
+    def __init__(self, velocity_iterations=20, position_iterations=10):
         """
         Initialize a new ContactSolver.
 
@@ -57,12 +57,14 @@ class ContactSolver:
             dt (float): The time step.
         """
         for _ in range(self.velocity_iterations):
-            impulse_change = 0.0
+            max_impulse_change = 0.0
             for contact in self.contacts:
                 old_impulse = contact.normal_impulse
                 contact.resolve(dt)
-                impulse_change += abs(contact.normal_impulse - old_impulse)
-            if impulse_change < 0.001:  # converged
+                max_impulse_change = max(
+                    max_impulse_change, abs(contact.normal_impulse - old_impulse)
+                )
+            if max_impulse_change < 0.01:  # Early-out if converged
                 break
 
     def solve_position_constraints(self, dt):

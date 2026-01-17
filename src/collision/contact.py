@@ -118,10 +118,31 @@ class Contact:
         if abs(velocity_along_normal) < 0.05 and self.penetration > 0.005:
             j = max(j, 0.2)  # safe gravity counter
 
-        j = max(j, 0.0)
+        # Ensure normal direction is consistent (points from body_b to body_a)
+        if self.normal.dot(self.body_b.position - self.body_a.position) < 0:
+            self.normal = -self.normal
+
+        # Stronger bias to correct penetration
+        bias = -BAUMGARTE / dt * max(0.0, self.penetration + 0.01) * 2.0
+
+        # Calculate impulse with bias and warm-start
+        j = (
+            -(1.0 + self.restitution) * velocity_along_normal
+            + bias
+            + self.normal_impulse
+        )
 
         # Clamp j to prevent explosion
+        j = max(j, 0.0)
         j = min(j, 100.0)
+
+        # Early-out if velocity is already separating
+        if velocity_along_normal > 0.01:
+            return
+
+        # Minimum impulse for resting contacts
+        if abs(j) < 0.5:
+            j = 0.5 * (1.0 if j > 0 else -1.0)
 
         # Early-out once
         if velocity_along_normal > 0.01:

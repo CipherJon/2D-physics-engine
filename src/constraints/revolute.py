@@ -106,13 +106,13 @@ class RevoluteJoint:
 
         # Hard clamp delta to prevent explosion
         impulse_delta = impulse_delta.clamped(
-            -100.0, 100.0
+            -50.0, 50.0
         )  # assume Vec2 has clamped method or implement
 
         self.impulse += impulse_delta
 
         # Hard clamp accumulated impulse
-        self.impulse = self.impulse.clamped(-500.0, 500.0)
+        self.impulse = self.impulse.clamped(-200.0, 200.0)
 
         # Apply with damping
         self.body1.velocity -= self.impulse * self.body1.inverse_mass
@@ -125,9 +125,10 @@ class RevoluteJoint:
             self.r2.cross(self.impulse) * self.body2.inverse_inertia
         )
 
-        # Strong damping (prevents exponential growth)
-        self.body1.velocity *= 0.98
-        self.body1.angular_velocity *= 0.98
+        # Conditional damping (only if velocity is high)
+        if self.body1.velocity.magnitude() > 30.0:
+            self.body1.velocity *= 0.995
+            self.body1.angular_velocity *= 0.995
         self.body2.velocity *= 0.98
         self.body2.angular_velocity *= 0.98
 

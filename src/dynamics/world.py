@@ -206,6 +206,10 @@ class World:
                 logger.debug(
                     f"Applied gravity to body at {body.position}: force={self.gravity * body.mass}"
                 )
+                # Conditional damping for high velocities
+                if body.velocity.magnitude() > 30.0:
+                    body.velocity *= 0.995
+                    body.angular_velocity *= 0.995
 
         # Integrate velocities
         for body in self.bodies:
