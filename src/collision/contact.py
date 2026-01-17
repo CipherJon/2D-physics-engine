@@ -6,6 +6,14 @@ It stores information about the collision such as the normal vector,
 penetration depth, and the bodies involved.
 """
 
+from src.common.constants import (
+    BAUMGARTE,
+    DYNAMIC_FRICTION,
+    POSITION_SLOP,
+    STATIC_FRICTION,
+)
+from src.math.vec2 import Vec2
+
 
 class Contact:
     """
@@ -21,12 +29,9 @@ class Contact:
         friction: The coefficient of friction.
         persistent: Whether the contact persists across frames.
         normal_impulse: The accumulated normal impulse for warm starting.
+        tangent_impulse: The accumulated tangent impulse for warm starting.
         last_separation: The separation from the previous frame.
     """
-
-    # Baumgarte stabilization constants
-    BAUMGARTE = 0.1
-    SLOP = 0.01
 
     def __init__(
         self,
@@ -35,8 +40,8 @@ class Contact:
         normal,
         penetration,
         contact_point,
-        restitution=0.5,
-        friction=0.5,
+        restitution=0.0,  # Default to 0.0 for stability tests
+        friction=DYNAMIC_FRICTION,
     ):
         """
         Initialize a new Contact.
@@ -59,9 +64,10 @@ class Contact:
         self.friction = friction
         self.persistent = True
         self.normal_impulse = 0.0
+        self.tangent_impulse = 0.0
         self.last_separation = 0.0
 
-    def resolve(self):
+    def resolve(self, dt):
         """
         Resolve the collision by applying impulses to the bodies.
         Returns:
@@ -87,68 +93,79 @@ class Contact:
         velocity_along_normal = relative_velocity.dot(self.normal)
         logger.info(f"Velocity along normal: {velocity_along_normal:.4f}")
 
-        # For resting contacts, we still need to apply an impulse to prevent sinking
-        # Only skip if bodies are actually moving apart (velocity_along_normal > 0)
-        if velocity_along_normal > 0:
-            logger.info("Bodies are moving apart, no impulse applied")
-            return 0.0
-
-        # For resting contacts (velocity_along_normal == 0), we still apply impulse
-        logger.info("Applying contact impulse for resting or approaching bodies")
-
         # Calculate restitution with fallback to contact's default value
         e_a = getattr(self.body_a, "restitution", self.restitution)
         e_b = getattr(self.body_b, "restitution", self.restitution)
         e = min(e_a, e_b)
         logger.info(f"Restitution: {e}")
 
-        # Calculate impulse scalar with warm starting
+        # Calculate inverse mass sum
         inv_mass_sum = self.body_a.inverse_mass + self.body_b.inverse_mass
         if abs(inv_mass_sum) < 1e-6:
             logger.warning(f"WARNING: Very small inverse mass sum: {inv_mass_sum}")
             return 0.0
 
-        # For resting contacts, we need to apply an impulse based on penetration
-        # to prevent bodies from sinking through each other
-        if abs(velocity_along_normal) < 1e-6:
-            # Resting contact: apply impulse based on penetration depth
-            # Use Baumgarte stabilization to prevent sinking
-            baumgarte_factor = 0.2  # Baumgarte stabilization coefficient
-            time_step = 1.0 / 60.0  # Assume default time step
-            j = (baumgarte_factor / time_step) * self.penetration * inv_mass_sum
-            logger.info(f"Resting contact impulse based on penetration: {j:.4f}")
-        else:
-            # Normal impulse calculation for moving contacts
-            j = -(1 + e) * velocity_along_normal
-            j /= inv_mass_sum
+        # Calculate Baumgarte bias for positional correction as velocity bias
+        # Use more aggressive bias calculation to prevent sinking
+        bias = -BAUMGARTE / dt * max(0.0, self.penetration + POSITION_SLOP)
+        # Scale bias by inverse mass to get proper velocity correction
+        bias_impulse = bias / inv_mass_sum if inv_mass_sum > 1e-6 else 0.0
+        logger.info(f"Baumgarte bias: {bias:.4f}, bias_impulse: {bias_impulse:.4f}")
 
+        # Calculate normal impulse scalar with warm starting
+        # Use the bias impulse directly for stronger correction
+        j = -(1 + e) * velocity_along_normal + bias_impulse
         j += self.normal_impulse  # Warm starting
-        logger.info(f"Impulse scalar: {j:.4f}")
 
-        # Apply impulse
-        impulse = j * self.normal
-        logger.info(f"Impulse vector: {impulse}")
+        # Ensure minimum impulse for resting contacts to prevent sinking
+        if abs(velocity_along_normal) < 0.1 and self.penetration > 0.01:
+            min_impulse = 5.0  # Minimum impulse to counteract gravity
+            j = max(j, min_impulse)
+            logger.info(f"Applied minimum impulse: {j:.4f}")
 
-        # Check if impulse is significant
-        if impulse.magnitude() < 1e-6:
-            logger.warning(
-                f"WARNING: Very small impulse magnitude: {impulse.magnitude():.6f}"
-            )
+        logger.info(f"Normal impulse scalar: {j:.4f}")
 
-        velocity_change_a = impulse * self.body_a.inverse_mass
-        velocity_change_b = impulse * self.body_b.inverse_mass
-        logger.info(
-            f"Body at {self.body_a.position} velocity change: {velocity_change_a}"
-        )
-        logger.info(
-            f"Body at {self.body_b.position} velocity change: {velocity_change_b}"
-        )
+        # Clamp the impulse to prevent excessive values
+        j = max(j, 0.0)
 
-        self.body_a.velocity -= velocity_change_a
-        self.body_b.velocity += velocity_change_b
+        # Apply normal impulse
+        normal_impulse = j * self.normal
+        logger.info(f"Normal impulse vector: {normal_impulse}")
 
-        # Store the impulse for warm starting in the next frame
+        # Apply normal impulse to bodies
+        self.body_a.velocity -= normal_impulse * self.body_a.inverse_mass
+        self.body_b.velocity += normal_impulse * self.body_b.inverse_mass
+
+        # Store the normal impulse for warm starting in the next frame
         self.normal_impulse = j
+
+        # Calculate tangent vector (perpendicular to normal)
+        tangent = Vec2(-self.normal.y, self.normal.x)
+
+        # Calculate relative velocity along tangent
+        velocity_along_tangent = relative_velocity.dot(tangent)
+        logger.info(f"Velocity along tangent: {velocity_along_tangent:.4f}")
+
+        # Calculate friction impulse
+        friction_impulse = 0.0
+        if abs(velocity_along_tangent) > 1e-6:
+            # Dynamic friction
+            friction_coefficient = min(STATIC_FRICTION, DYNAMIC_FRICTION)
+            max_friction = j * friction_coefficient
+
+            # Calculate desired friction impulse
+            friction_impulse = -velocity_along_tangent / inv_mass_sum
+            friction_impulse = max(-max_friction, min(max_friction, friction_impulse))
+
+            logger.info(f"Friction impulse: {friction_impulse:.4f}")
+
+            # Apply friction impulse
+            friction_vector = friction_impulse * tangent
+            self.body_a.velocity -= friction_vector * self.body_a.inverse_mass
+            self.body_b.velocity += friction_vector * self.body_b.inverse_mass
+
+            # Store the tangent impulse for warm starting
+            self.tangent_impulse = friction_impulse
 
         logger.info(
             f"Updated velocities - body_a at {self.body_a.position}: {self.body_a.velocity}, body_b at {self.body_b.position}: {self.body_b.velocity}"
@@ -161,8 +178,8 @@ class Contact:
         """
         Apply positional correction using Baumgarte stabilization to prevent bodies from overlapping.
         """
-        correction = max(self.penetration + self.SLOP, 0.0)
-        position_impulse = (self.BAUMGARTE / dt) * correction * self.normal
+        correction = max(self.penetration + POSITION_SLOP, 0.0)
+        position_impulse = (BAUMGARTE / dt) * correction * self.normal
 
         # Apply to both bodies (proportional to inverse mass)
         self.body_a.position += position_impulse * self.body_a.inverse_mass

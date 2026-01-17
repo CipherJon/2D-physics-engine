@@ -3,11 +3,13 @@ Narrowphase collision detection module.
 """
 
 import logging
+from typing import List
 
 from src.collision.contact import Contact
 from src.collision.sat import SAT
 from src.contacts.contact_solver import ContactSolver
 from src.core.shape import Shape
+from src.math.vec2 import Vec2
 
 # Configure logging
 logging.basicConfig(
@@ -26,7 +28,7 @@ class BodyShapeWrapper(Shape):
         self.body = body
         self.original_shape = original_shape
 
-    def get_vertices(self):
+    def get_vertices(self) -> List[Vec2]:
         """Get vertices adjusted for body position."""
         vertices = self.original_shape.get_vertices()
         logger.info(
@@ -35,14 +37,10 @@ class BodyShapeWrapper(Shape):
         logger.info(f"Body position: {self.body.position}")
 
         if hasattr(self.original_shape, "center"):  # Circle
-            # For circles, vertices are already relative to circle center
-            # So we need to add body position to get world coordinates
-            adjusted_vertices = []
-            for vertex in vertices:
-                adjusted_vertex = vertex + self.body.position
-                adjusted_vertices.append(adjusted_vertex)
-                logger.info(f"Adjusted circle vertices: {adjusted_vertices}")
-                return adjusted_vertices
+            # For circles, vertices are already calculated relative to circle center
+            # The circle's center should already be relative to body position, so no adjustment needed
+            logger.info(f"Circle vertices (already in world coordinates): {vertices}")
+            return vertices
         else:  # Polygon or other shapes
             # For polygons, adjust each vertex by body position
             adjusted_vertices = []

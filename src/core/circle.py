@@ -1,6 +1,8 @@
 import math
 from typing import List, Optional
 
+from ..core.aabb import AABB
+from ..core.body import Body
 from ..core.shape import Shape
 from ..math.vec2 import Vec2
 
@@ -139,9 +141,10 @@ class Circle(Shape):
         """
         from src.core.aabb import AABB
 
-        # Calculate the world position of the circle's center
+        # For a circle, the center should be the body's position
+        # The circle's center attribute is relative to the body's position
         if body:
-            center = body.position + self.center
+            center = body.position
         else:
             center = self.center
 

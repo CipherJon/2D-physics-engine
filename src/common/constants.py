@@ -15,12 +15,17 @@ GRAVITY_VEC = (0.0, -GRAVITY)
 
 # Simulation constants
 DEFAULT_TIME_STEP = 1.0 / 60.0
-DEFAULT_VELOCITY_ITERATIONS = 8
-DEFAULT_POSITION_ITERATIONS = 3
+DEFAULT_VELOCITY_ITERATIONS = 50  # Increased from 8 to 50
+DEFAULT_POSITION_ITERATIONS = 20  # Increased from 3 to 20
 
 # Collision constants
 DEFAULT_RESTITUTION = 0.5
 DEFAULT_FRICTION = 0.5
-```
 
-I will continue generating code for the remaining empty files. Let me know if you'd like to proceed with the rest.
+# Baumgarte stabilization constants (aggressive tuning)
+BAUMGARTE = 0.4  # Increased from 0.1 to 0.4
+POSITION_SLOP = 0.02  # Allow small penetration before strong correction
+
+# Friction constants
+STATIC_FRICTION = 0.6
+DYNAMIC_FRICTION = 0.4

@@ -6,7 +6,7 @@ This module provides utility classes and constants used across the physics engin
 
 from .color import Color
 from .constants import EPSILON, GRAVITY, PI
-from .exceptions import PhysicsError
+from .exceptions import PhysicsEngineError as PhysicsError
 from .profile import Profiler
 from .timer import Timer
 

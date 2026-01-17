@@ -36,13 +36,16 @@ class World:
         self.broadphase = Broadphase()
         self.narrowphase = Narrowphase()
         self.contact_solver = ContactSolver(
-            velocity_iterations=8, position_iterations=3
+            velocity_iterations=40, position_iterations=15
         )
         self.time_step: float = 1.0 / 60.0
-        self.velocity_iterations: int = 8
-        self.position_iterations: int = 3
+        self.velocity_iterations: int = 40
+        self.position_iterations: int = 15
         self.step_count: int = 0
         self.active_contacts = {}  # Track persistent contacts across frames
+        self.contact_persistence_threshold = (
+            0.05  # Distance threshold for contact persistence
+        )
 
     def add_body(self, body: Body) -> None:
         """
@@ -215,6 +218,14 @@ class World:
                 if hasattr(joint, "solve_velocity_constraints"):
                     joint.solve_velocity_constraints(self.time_step)
 
+        # Solve position constraints separately
+        for _ in range(self.position_iterations):
+            self.contact_solver.solve_position_constraints(self.time_step)
+
+        # Solve position constraints separately
+        for _ in range(self.position_iterations):
+            self.contact_solver.solve_position_constraints(self.time_step)
+
         # Integrate positions
         for body in self.bodies:
             if not body.is_static:
@@ -243,7 +254,7 @@ class World:
 
     def _solve_contacts(self, collision_pairs, dt):
         """
-        Solve contacts using the contact solver.
+        Solve contacts using the contact solver with persistence.
 
         Args:
             collision_pairs (list): List of colliding body pairs.
@@ -252,24 +263,45 @@ class World:
         # Clear the contact solver
         self.contact_solver.clear_contacts()
 
-        # Add contacts to the solver
+        # Add contacts to the solver with persistence
         for body1, body2 in collision_pairs:
             manifold = self.narrowphase.get_collision_manifold(body1, body2)
             print(f"Manifold for {body1.position} vs {body2.position}: {manifold}")
+
             if manifold is not None:
-                contact = Contact(
-                    body_a=body1,
-                    body_b=body2,
-                    normal=manifold.normal,
-                    penetration=manifold.depth,
-                    contact_point=manifold.points[0]
-                    if manifold.points
-                    else body1.position,
-                )
-                print(f"Adding contact: {contact}")
+                # Check for persistent contacts
+                contact_key = (id(body1), id(body2))
+                if contact_key in self.active_contacts:
+                    # Reuse existing contact with accumulated impulses
+                    contact = self.active_contacts[contact_key]
+                    contact.normal = manifold.normal
+                    contact.penetration = manifold.depth
+                    contact.contact_point = (
+                        manifold.points[0] if manifold.points else body1.position
+                    )
+                    print(f"Reusing persistent contact: {contact}")
+                else:
+                    # Create new contact
+                    contact = Contact(
+                        body_a=body1,
+                        body_b=body2,
+                        normal=manifold.normal,
+                        penetration=manifold.depth,
+                        contact_point=manifold.points[0]
+                        if manifold.points
+                        else body1.position,
+                    )
+                    print(f"Adding new contact: {contact}")
+                    # Store the new contact for persistence
+                    self.active_contacts[contact_key] = contact
+
                 self.contact_solver.add_contact(contact)
             else:
                 print(f"No manifold for {body1.position} vs {body2.position}")
+                # Remove from active contacts if no longer colliding
+                contact_key = (id(body1), id(body2))
+                if contact_key in self.active_contacts:
+                    del self.active_contacts[contact_key]
 
         # Solve the contacts and return impulse magnitudes
         impulse_magnitudes = self.contact_solver.solve(dt)

@@ -1,6 +1,6 @@
-import math
 from typing import Optional
 
+from ..core.aabb import AABB
 from ..core.shape import Shape
 from ..math.transform import Transform
 from ..math.vec2 import Vec2

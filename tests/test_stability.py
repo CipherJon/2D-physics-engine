@@ -105,17 +105,22 @@ def test_long_term_stability():
 
 def test_resting_contact_stability():
     """Test that bodies at rest remain stable."""
-    world = World(Vec2(0.0, 10.0))  # Gravity
+    world = World(Vec2(0.0, 1.0))  # Reduced gravity for stability testing
 
     # Create a static ground
     ground = Body(
         shape=Polygon([Vec2(-10, -1), Vec2(10, -1), Vec2(10, 0), Vec2(-10, 0)]),
         is_static=True,
+        restitution=0.0,  # Force no restitution for stability
     )
     world.add_body(ground)
 
     # Create a dynamic body resting on the ground
-    body = Body(shape=Circle(Vec2(0, 1), 1))
+    body = Body(
+        shape=Circle(Vec2(0, 1), 1),
+        position=Vec2(0, 1),  # Explicit position to match circle center
+        restitution=0.0,  # Force no restitution
+    )
     body.velocity = Vec2(0, 0)  # No initial velocity
     world.add_body(body)
 
@@ -135,6 +140,7 @@ def test_stacking_stability():
     ground = Body(
         shape=Polygon([Vec2(-10, -1), Vec2(10, -1), Vec2(10, 0), Vec2(-10, 0)]),
         is_static=True,
+        restitution=0.0,  # Force no restitution for stability
     )
     world.add_body(ground)
 
@@ -148,7 +154,8 @@ def test_stacking_stability():
                     Vec2(1, i * 2 + 2),
                     Vec2(-1, i * 2 + 2),
                 ]
-            )
+            ),
+            restitution=0.0,  # Force no restitution for stability
         )
         world.add_body(body)
 

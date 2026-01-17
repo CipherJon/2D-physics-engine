@@ -4,6 +4,7 @@ Contact solver for the physics engine.
 This module provides functionality for solving contacts between bodies in the physics engine.
 """
 
+from src.common.constants import BAUMGARTE, POSITION_SLOP, STATIC_FRICTION, DYNAMIC_FRICTION
 
 class ContactSolver:
     """
@@ -15,7 +16,7 @@ class ContactSolver:
         position_iterations (int): The number of position iterations.
     """
 
-    def __init__(self, velocity_iterations=8, position_iterations=3):
+    def __init__(self, velocity_iterations=40, position_iterations=15):
         """
         Initialize a new ContactSolver.
 
@@ -42,17 +43,23 @@ class ContactSolver:
         """
         self.contacts.clear()
 
-    def solve_velocity_constraints(self):
+    def solve_velocity_constraints(self, dt):
         """
         Solve the velocity constraints for all contacts.
+
+        Args:
+            dt (float): The time step.
         """
         for _ in range(self.velocity_iterations):
             for contact in self.contacts:
-                contact.resolve()
+                contact.resolve(dt)
 
     def solve_position_constraints(self, dt):
         """
         Solve the position constraints for all contacts.
+
+        Args:
+            dt (float): The time step.
         """
         for _ in range(self.position_iterations):
             for contact in self.contacts:
@@ -61,12 +68,24 @@ class ContactSolver:
     def solve(self, dt):
         """
         Solve all contacts.
+
+        Args:
+            dt (float): The time step.
+
         Returns:
             list: List of impulse magnitudes applied
         """
         print(f"ContactSolver.solve called with {len(self.contacts)} contacts")
         impulse_magnitudes = []
-        for contact in self.contacts:
-            impulse_magnitudes.append(contact.resolve())
+
+        # Solve velocity constraints
+        self.solve_velocity_constraints(dt)
+
+        # Solve position constraints
         self.solve_position_constraints(dt)
+
+        # Collect impulse magnitudes
+        for contact in self.contacts:
+            impulse_magnitudes.append(abs(contact.normal_impulse))
+
         return impulse_magnitudes
